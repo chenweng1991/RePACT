@@ -1,4 +1,4 @@
-# EZsinglecell
+# RePACT
 
 
 
@@ -113,3 +113,5 @@ Tjct.core.plot(T2D.tjct.ob,T2D.tjct.2nd.ob,pheno="Disease",f1.name="T2D.tjct.10d
   - gene_drug.db
 - Hocomoco genes
   - Hocomocogenes
+
+(Main resourses and functions are here. I am still working on making it more readable)
