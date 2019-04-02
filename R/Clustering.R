@@ -346,7 +346,7 @@ docluster.multi<-function(Number,txcutoff=500,sets,nms,selected=NULL,filterstuff
 #' @examples
 #' GetinformativeGene(dgepreprocess(s7.RockII_1.dge,500,norowname=T),500)
 
-docluster.single<-function(Number,Mergedset,nm1,dict=NULL,reso=0.6,genemin=200,cellmin=3)
+docluster.single<-function(Number,Mergedset,nm1="",dict=NULL,reso=0.6,genemin=200,cellmin=3)
 {
 require(Seurat)
 require(ggplot2)
@@ -354,7 +354,10 @@ require(Matrix)
 require(RColorBrewer)
 
 Mergedset[is.na(Mergedset)]<-0
+if(length(which(rowSums(Mergedset)==0)))
+{
 Mergedset<-Mergedset[-which(rowSums(Mergedset)==0),]
+}
 data<-Matrix(as.matrix(Mergedset))
 mylist<-GetinformativeGene(Mergedset,Number)
 pbmc <- new("seurat", raw.data = data)

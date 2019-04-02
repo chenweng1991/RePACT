@@ -90,14 +90,16 @@ H6.D.clean.dge<-as.matrix(H6.D.seurat@raw.data)
 T2D1.D.clean.dge<-as.matrix(T2D1.D.seurat@raw.data)
 T2D2.D.clean.dge<-as.matrix(T2D2.D.seurat@raw.data)
 T2D3.D.clean.dge<-as.matrix(T2D3.D.seurat@raw.data)
-
+Allbeta.dge<-as.matrix(SeuratALL.endo.0.6.ob@raw.data[,row.names(subset(allBeta.dict,celltype3=="Beta.HS.neg"))])
 SeuratALL.filtered.0.6<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge,H3.D.clean.dge,H4.D.clean.dge,H5.D.clean.dge,H6.D.clean.dge,T2D1.D.clean.dge,T2D2.D.clean.dge,T2D3.D.clean.dge),nms=c("H1","H2","H3","H4","H5","H6","T2D1","T2D2","T2D3"))
-
+sample.dict.full<-readRDS("/mnt/NFS/homeGene/JinLab/cxw486/Dropseq/DGEanalysis/Islet412+511+919+T2D1+S4/workplaceLink/2017.9.21.revise/927.sample.dict")
 ## prepare endocrine only raw dge data
 SeuratALL.endo.0.6.ob<-readRDS("/mnt/NFS/homeGene/JinLab/cxw486/Dropseq/DGEanalysis/Islet412+511+919+T2D1+S4/workplaceLink/2017.9.21.revise/927Endo.0.6.ob")
 ALLendocrine.clean.dge<-as.matrix(SeuratALL.endo.0.6.ob@raw.data)
 SeuratALL.endo.0.6.ob<-docluster.single(500,ALLendocrine.clean.dge)
 
+### phenotypic table
+phenotable<-read.csv("/mnt/NFS/homeGene/JinLab/cxw486/Dropseq/Entrance/Islet_dropseq/Donor.info.csv")
 
 # Save data
 devtools::use_data(Crisp.t1,Crisp.t2,GWASdata,Surfaceome.data,G1.S,S,G2.M,M,M.G1,all.cellcycle,TFfromDBD,msig.db,all.Beta.maker,allAlpha.marker,delta.markers,pp.markers,epsilon.markers,Beta.BMI.trj.genes,Beta.T2D.trj.genes,gene_drug.db,Hocomocogenes,overwrite=T)
@@ -105,3 +107,6 @@ devtools::use_data(TFvector)
 usethis::use_data(H1.D.clean.dge,H2.D.clean.dge,H3.D.clean.dge,H4.D.clean.dge,H5.D.clean.dge,H6.D.clean.dge,T2D1.D.clean.dge,T2D1.D.clean.dge,T2D2.D.clean.dge,T2D3.D.clean.dge)
 #usethis::use_data(SeuratALL.filtered.0.6)
 #usethis::use_data(SeuratALL.endo.0.6.ob)
+usethis::use_data(phenotable)
+usethis::use_data(Allbeta.dge)
+usethis::use_data(sample.dict.full)
