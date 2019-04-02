@@ -76,7 +76,7 @@ H1H2.fullplot<-Fullplot_v2(H1H2.ob,"./PDF/example.fullplot.pdf",signiture=c("INS
 ```
 The above two line will generate example PDFs for [H1H2]()
 
-<!-- tiff("./image/Fig1A.tiff",res=300, width = 6, height = 6, units = 'in')
+tiff("./image/Fig1A.tiff",res=100, width = 6, height = 6, units = 'in')
 H1H2.fullplot[[1]]
 dev.off()
 
@@ -86,11 +86,11 @@ newloist<-c(newloist,list(H1H2.fullplot[[9]][[i]]+theme(axis.text=element_blank(
 }
 
 
+![try]https://github.com/chenweng1991/RePACT/blob/RePACT.organized/image/Fig1A.tiff?raw=true
 
-
-tiff("./image/Fig1G.tiff",res=300, width = 6, height = 6, units = 'in')
+tiff("./image/Fig1G.tiff",res=100, width = 6, height = 6, units = 'in')
 grid.arrange(grobs=newloist,nrow=2)
-dev.off() -->
+dev.off()
 
 1.  Do clustering for one dge sample
 ```
