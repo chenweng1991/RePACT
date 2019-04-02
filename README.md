@@ -1,4 +1,4 @@
-# RePACT
+# EZsinglecell
 
 
 
@@ -6,11 +6,75 @@
 ```
 # Install development version from GitHub:
 # install.packages("devtools")
-  devtools::install_github("chenweng1991/RePACT")
+
+install("/mnt/NFS/homeGene/JinLab/cxw486/lib/dropseqlib/analysisscript/RePACT")
+
+
+library("RePACT")
+
+
+setwd("/mnt/NFS/homeGene/JinLab/cxw486/lib/dropseqlib/analysisscript/RePACT")
+setwd("/mnt/NFS/homeGene/JinLab/cxw486/Dropseq/DGEanalysis/Islet412+511+919+T2D1+S4/workplaceLink/2017.9.21.revise")
+
 ```
 ---
 
-### Clustering
+### Introduction
+We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data. The key step is to find the best trajectory to rank single cells (e.g. β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and T2D (denoted by a dichotomous variable T2D).
+
+Before running a main RePACT analysis, We highly recommend to perform cell clustering to generate a clear picture of cell type composition in the data. With cell type informrmation annotated, we can then focus on ONE specific cell type across different donors for a "clean" disease trajectory analysis.
+
+We integrate some major functions from [Seurat](https://satijalab.org/seurat/) into our pipeline for basic dimension reduction and clustering analysis.
+
+Here, we share our raw data as well as some necessary intermediate data to demonstrate the usage of RePACT toolkit.
+
+Please follow the pipeline below that examplify the RePACT analysis to generate major results in our manuscript ([Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043))
+
+
+### Clustering analysis
+
+
+
+We provide the digital gene expression(dge) matrix data from each donor. There are 9 dge matrix data in total.
+H1~H6 are healthy donors
+T2D1~T2D3 are T2D donors
+```
+data(H1.D.clean.dge,H2.D.clean.dge,H3.D.clean.dge,H4.D.clean.dge,H5.D.clean.dge,H6.D.clean.dge,T2D1.D.clean.dge,T2D1.D.clean.dge,T2D2.D.clean.dge,T2D3.D.clean.dge)
+
+H1.D.clean.dge[1:5,1:5]
+         TGTGAGCTGAGA TTGATCTGCCCA GCTAACCTCTCN GTCTAATCCCGT TCTCACCCTTCN
+A1BG                3            2            1            0            2
+A1BG-AS1            0            0            0            0            1
+A1CF                0            0            1            0            0
+A2M                 0            0            0            0            0
+A2M-AS1             0            0            0            0            0
+```
+
+One line commend **_docluster.multi()_** for basic dimension reduction and clustering analysis.It takes multiple dge matrix data as input, and output a Seurat style metadata object. In this example, I took H1 and H2 as smallest data for a fast example
+```
+SeuratTWO.ob<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge),nms=c("H1","H2"))
+```
+Alternatively, the full analyzed object that include 9 donors can be directly loaded
+```
+data(SeuratALL.filtered.0.6)
+```
+With the analyzed object above, we provide a commend **_Fullplot_v2_** to generate major informative figures. **_Fullplot_v2_** will generate a PDF file containing
+1. tSNE plot colored by default cluster
+2. heatmap showing signature genes for each cluster
+3. tSNE plot colored by samples (as 2 donors in this example)
+4. PCA plot colored by default cluster
+5. PCA plot colored by donors (as 2 donors in this example)
+6. Heatmap to show Genes that are driving PC1-PC4, respectively
+```
+Fullplot_v2(SeuratTWO.ob,"./PDF/example.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"))
+Fullplot_v2(SeuratALL.filtered.0.6,"./PDF/SeuratALL.filtered.0.6.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),pdfwidth=10,pdfheight=10)
+```
+The above two line will generate example PDFs for [SeuratTWO] and SeuratALL.filtered.0.6
+
+
+
+
+
 
 1.  Do clustering for one dge sample
 ```
@@ -114,4 +178,10 @@ Tjct.core.plot(T2D.tjct.ob,T2D.tjct.2nd.ob,pheno="Disease",f1.name="T2D.tjct.10d
 - Hocomoco genes
   - Hocomocogenes
 
-(Main resourses and functions are here. I am still working on making it more readable)
+
+
+
+  ### To do
+
+  incorporate the  library
+  library(Seurat, lib.loc="/mnt/NFS/homeGene/JinLab/cxw486/R/x86_64-redhat-linux-gnu-library/3.3")
