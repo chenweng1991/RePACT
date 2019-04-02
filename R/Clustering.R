@@ -331,3 +331,57 @@ docluster.multi<-function(Number,txcutoff=500,sets,nms,selected=NULL,filterstuff
 	}
 	return(pbmc)
 }
+
+
+#' docluster.single
+#'
+#' This function a simple function to do clustering for one dge file
+#' @param Number number of the most informative genes for clustering, default is 500
+#' @param Mergedset  The dge matrix
+#' @param nm1 the name for this sample
+#' @param geneminThe the minimum gene number as hard filtering for a valid cell
+#' @param cellmin the minimum cell number that express a specific gene as  hard filtering for an expressed gene
+#' @return this will return a serurat object for other analysis
+#' @export
+#' @examples
+#' GetinformativeGene(dgepreprocess(s7.RockII_1.dge,500,norowname=T),500)
+
+docluster.single<-function(Number,Mergedset,nm1,dict=NULL,reso=0.6,genemin=200,cellmin=3)
+{
+require(Seurat)
+require(ggplot2)
+require(Matrix)
+require(RColorBrewer)
+
+Mergedset[is.na(Mergedset)]<-0
+if(length((which(rowSums(Mergedset)==0))))
+{
+Mergedset<-Mergedset[-which(rowSums(Mergedset)==0),]
+}
+data<-Matrix(Mergedset)
+mylist<-GetinformativeGene(Mergedset,Number)
+pbmc <- new("seurat", raw.data = data)
+pbmc <- Setup(pbmc, min.cells = cellmin, min.genes = genemin, do.logNormalize = T, total.expr = 1e4, project = "10X_PBMC")
+pbmc@var.genes<-row.names(x=mylist)
+mito.genes <- grep("^MT-", rownames(pbmc@data), value = T)
+percent.mito <- colSums(expm1(pbmc@data[mito.genes, ]))/colSums(expm1(pbmc@data))
+pbmc <- AddMetaData(pbmc, percent.mito, "percent.mito")
+if (!is.null(dict))
+  {pbmc@data.info<-Tomerge_v2(pbmc@data.info,dict)
+  } else
+  {pbmc@data.info<-cbind(pbmc@data.info,Sample=nm1)
+  }
+pbmc@data.info$nGene<-as.numeric(as.character(pbmc@data.info$nGene))
+pbmc@data.info$nUMI<-as.numeric(as.character(pbmc@data.info$nUMI))
+pbmc@data.info$percent.mito<-as.numeric(as.character(pbmc@data.info$percent.mito))
+pbmc <- SubsetData(pbmc, subset.name = "nGene", accept.high = 2500)
+pbmc <- SubsetData(pbmc, subset.name = "percent.mito", accept.high = 0.05)
+pbmc <- RegressOut(pbmc, latent.vars = c("nUMI", "percent.mito"))
+pbmc <- PCA(pbmc, pc.genes = pbmc@var.genes, do.print = TRUE, pcs.print = 5, genes.print = 5)
+pbmc <- ProjectPCA(pbmc)
+pbmc <- FindClusters(pbmc, pc.use = 1:10, resolution = reso, print.output = 0, save.SNN = T)
+pbmc <- RunTSNE(pbmc, dims.use = 1:10, do.fast = T)
+data.infoandtSNE<-merge(pbmc@tsne.rot,pbmc@data.info,by="row.names")
+data.infoandtSNE$Sample<-factor(data.infoandtSNE$Sample)
+return(pbmc)
+}

@@ -107,10 +107,16 @@ require(Seurat)
 	{
 		sig.plot<-GettsnesignatureSuper(object,object,signiture=signiture,toreturn=T)
     cycles<-as.integer(length(sig.plot)/6)
-    for (i in 0:(cycles-1)){
-      grid.arrange(grobs=sig.plot[(6*i+1):(6*i+6)])
-    }
-    grid.arrange(grobs=sig.plot[(6*cycles+1):length(sig.plot)])
+		if(cycles==0)
+		{
+			grid.arrange(grobs=sig.plot)
+		}else{
+		    for (i in 0:(cycles-1)){
+      			grid.arrange(grobs=sig.plot[(6*i+1):(6*i+6)])
+    		 }
+				 if(length(sig.plot)%%6)
+    		grid.arrange(grobs=sig.plot[(6*cycles+1):length(sig.plot)])
+		}
 	}
 	dev.off()
 	if(doreturn)
