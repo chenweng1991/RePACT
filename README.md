@@ -39,7 +39,7 @@ We provide the digital gene expression(dge) matrix data from each donor. There a
 H1, H2, H3, H4, H5, H6 are healthy donors
 T2D1, T2D2 and T2D3 are T2D donors
 
-To gain all dge raw data
+We share all dge raw data here
 ```
 data(H1.D.clean.dge,H2.D.clean.dge,H3.D.clean.dge,H4.D.clean.dge,H5.D.clean.dge,H6.D.clean.dge,T2D1.D.clean.dge,T2D1.D.clean.dge,T2D2.D.clean.dge,T2D3.D.clean.dge)
 
@@ -59,24 +59,23 @@ One line commend **_docluster.multi()_** for basic dimension reduction and clust
 ```
 H1H2.ob<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge),nms=c("H1","H2"))
 ```
-Alternatively, the full analyzed object that include 9 donors can be directly loaded
-```
-data(SeuratALL.filtered.0.6)
-```
+
 With the analyzed object above, we provide a commend **_Fullplot_v2_** to generate major informative figures. **_Fullplot_v2_** will generate a PDF file containing
-A. tSNE plot colored by default cluster
-B. heatmap showing signature genes for each cluster
-C. tSNE plot colored by samples (as 2 donors in this example)
-D. PCA plot colored by default cluster
-E. PCA plot colored by donors (as 2 donors in this example)
-F. Heatmap to show Genes that are driving PC1-PC4, respectively
-G. tsne staining to show marker genes
+- A. tSNE plot colored by default cluster
+- B. heatmap showing signature genes for each cluster
+- C. tSNE plot colored by samples (as 2 donors in this example)
+- D. PCA plot colored by default cluster
+- E. PCA plot colored by donors (as 2 donors in this example)
+- F. Heatmap to show Genes that are driving PC1-PC4, respectively
+- G. tSNE staining to show marker genes
 ```
 H1H2.fullplot<-Fullplot_v2(H1H2.ob,"./PDF/example.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T)
 ```
 The above two line will generate example PDFs for [H1H2](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/example.fullplot.pdf)
-
+> Example figure , left panel is the tsne illustration of cell clustering. It is colored by unsupervised cell cluster. Right panel is the same tSNE plot with interested genes highlighted . Color intensity reflect expression level in Z score.
 ![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1.png)
+
+
 <!-- png("./image/Fig1A.tiff",res=100, width = 6, height = 6, units = 'in')
 H1H2.fullplot[[1]]
 dev.off()
@@ -94,6 +93,18 @@ grid.arrange(grobs=c(H1H2.fullplot[1],newloist),layout_matrix=rbind(c(1,1,1,1,2,
 png("./image/Fig1.png",res=300, width = 12, height = 8, units = 'in')
 grid.arrange(grobs=c(H1H2.fullplot[1],newloist),layout_matrix=rbind(c(1,1,1,1,NA,NA,NA),c(1,1,1,1,2,3,4),c(1,1,1,1,5,6,7),c(1,1,1,1,NA,NA,NA)))
 dev.off() -->
+
+### RePACT main section
+---
+1. Things to prepare before started
+First of all, the major input of RePACT analysis is an preliminarily analyzed object from **_`docluster.multi`_**
+```
+data(phenotable)
+```
+
+
+
+
 
 1.  Do clustering for one dge sample
 ```
