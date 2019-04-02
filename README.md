@@ -76,25 +76,24 @@ H1H2.fullplot<-Fullplot_v2(H1H2.ob,"./PDF/example.fullplot.pdf",signiture=c("INS
 ```
 The above two line will generate example PDFs for [H1H2](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/example.fullplot.pdf)
 
-
-![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1A.png)![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1G.png)
-
-
-png("./image/Fig1A.tiff",res=100, width = 6, height = 6, units = 'in')
+![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1.png)
+<!-- png("./image/Fig1A.tiff",res=100, width = 6, height = 6, units = 'in')
 H1H2.fullplot[[1]]
 dev.off()
+
+
 
 newloist<-list()
 for (i in 1:6){
 newloist<-c(newloist,list(H1H2.fullplot[[9]][[i]]+theme(axis.text=element_blank(),axis.title=element_blank(),axis.ticks=element_blank(),axis.line=element_blank())))
 }
-
+grid.arrange(grobs=c(H1H2.fullplot[1],newloist),layout_matrix=rbind(c(1,1,1,1,2,3,4),c(1,1,1,1,5,6,7),c(1,1,1,1,NA,NA,NA)))
 
 ![try]
 
-png("./image/Fig1G.png",res=100, width = 6, height = 6, units = 'in')
-grid.arrange(grobs=newloist,nrow=2)
-dev.off()
+png("./image/Fig1.png",res=300, width = 12, height = 8, units = 'in')
+grid.arrange(grobs=c(H1H2.fullplot[1],newloist),layout_matrix=rbind(c(1,1,1,1,NA,NA,NA),c(1,1,1,1,2,3,4),c(1,1,1,1,5,6,7),c(1,1,1,1,NA,NA,NA)))
+dev.off() -->
 
 1.  Do clustering for one dge sample
 ```
