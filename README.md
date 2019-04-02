@@ -77,7 +77,7 @@ H1H2.fullplot<-Fullplot_v2(H1H2.ob,"./PDF/example.fullplot.pdf",signiture=c("INS
 The above two line will generate example PDFs for [H1H2](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/example.fullplot.pdf)
 
 
-![]https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1A.png
+![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1A.png)![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1G.png)
 
 
 png("./image/Fig1A.tiff",res=100, width = 6, height = 6, units = 'in')
