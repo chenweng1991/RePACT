@@ -36,11 +36,14 @@ Please follow the pipeline below that examplify the RePACT analysis to generate 
 
 
 We provide the digital gene expression(dge) matrix data from each donor. There are 9 dge matrix data in total.
-H1~H6 are healthy donors
-T2D1~T2D3 are T2D donors
+H1, H2, H3, H4, H5, H6 are healthy donors
+T2D1, T2D2 and T2D3 are T2D donors
+
+To gain all dge raw data
 ```
 data(H1.D.clean.dge,H2.D.clean.dge,H3.D.clean.dge,H4.D.clean.dge,H5.D.clean.dge,H6.D.clean.dge,T2D1.D.clean.dge,T2D1.D.clean.dge,T2D2.D.clean.dge,T2D3.D.clean.dge)
 
+#Data look like this
 H1.D.clean.dge[1:5,1:5]
          TGTGAGCTGAGA TTGATCTGCCCA GCTAACCTCTCN GTCTAATCCCGT TCTCACCCTTCN
 A1BG                3            2            1            0            2
@@ -50,31 +53,44 @@ A2M                 0            0            0            0            0
 A2M-AS1             0            0            0            0            0
 ```
 
-One line commend **_docluster.multi()_** for basic dimension reduction and clustering analysis.It takes multiple dge matrix data as input, and output a Seurat style metadata object. In this example, I took H1 and H2 as smallest data for a fast example
+
+
+One line commend **_docluster.multi()_** for basic dimension reduction and clustering analysis.It takes multiple dge matrix data as input, and output a Seurat style metadata object. In this example, I took H1 and H2 as smallest data as a fast example
 ```
-SeuratTWO.ob<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge),nms=c("H1","H2"))
+H1H2.ob<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge),nms=c("H1","H2"))
 ```
 Alternatively, the full analyzed object that include 9 donors can be directly loaded
 ```
 data(SeuratALL.filtered.0.6)
 ```
 With the analyzed object above, we provide a commend **_Fullplot_v2_** to generate major informative figures. **_Fullplot_v2_** will generate a PDF file containing
-1. tSNE plot colored by default cluster
-2. heatmap showing signature genes for each cluster
-3. tSNE plot colored by samples (as 2 donors in this example)
-4. PCA plot colored by default cluster
-5. PCA plot colored by donors (as 2 donors in this example)
-6. Heatmap to show Genes that are driving PC1-PC4, respectively
+A. tSNE plot colored by default cluster
+B. heatmap showing signature genes for each cluster
+C. tSNE plot colored by samples (as 2 donors in this example)
+D. PCA plot colored by default cluster
+E. PCA plot colored by donors (as 2 donors in this example)
+F. Heatmap to show Genes that are driving PC1-PC4, respectively
+G. tsne staining to show marker genes
 ```
-Fullplot_v2(SeuratTWO.ob,"./PDF/example.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"))
-Fullplot_v2(SeuratALL.filtered.0.6,"./PDF/SeuratALL.filtered.0.6.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),pdfwidth=10,pdfheight=10)
+H1H2.fullplot<-Fullplot_v2(H1H2.ob,"./PDF/example.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T)
 ```
-The above two line will generate example PDFs for [SeuratTWO] and SeuratALL.filtered.0.6
+The above two line will generate example PDFs for [H1H2]()
+
+<!-- tiff("./image/Fig1A.tiff",res=300, width = 6, height = 6, units = 'in')
+H1H2.fullplot[[1]]
+dev.off()
+
+newloist<-list()
+for (i in 1:6){
+newloist<-c(newloist,list(H1H2.fullplot[[9]][[i]]+theme(axis.text=element_blank(),axis.title=element_blank(),axis.ticks=element_blank(),axis.line=element_blank())))
+}
 
 
 
 
-
+tiff("./image/Fig1G.tiff",res=300, width = 6, height = 6, units = 'in')
+grid.arrange(grobs=newloist,nrow=2)
+dev.off() -->
 
 1.  Do clustering for one dge sample
 ```
