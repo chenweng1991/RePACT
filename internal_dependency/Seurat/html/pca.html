@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Run Principal Component Analysis on gene expression</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for PCA {Seurat}"><tr><td>PCA {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Run Principal Component Analysis on gene expression</h2>
+
+<h3>Description</h3>
+
+<p>Run prcomp for PCA dimensionality reduction
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+PCA(object, pc.genes = NULL, do.print = TRUE, pcs.print = 5,
+  pcs.store = 40, genes.print = 30, use.imputed = FALSE,
+  rev.pca = FALSE, ...)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>pc.genes</code></td>
+<td>
+<p>Genes to use as input for PCA. Default is object@var.genes</p>
+</td></tr>
+<tr valign="top"><td><code>do.print</code></td>
+<td>
+<p>Print the top genes associated with high/low loadings for
+the PCs</p>
+</td></tr>
+<tr valign="top"><td><code>pcs.print</code></td>
+<td>
+<p>Number of PCs to print genes for</p>
+</td></tr>
+<tr valign="top"><td><code>pcs.store</code></td>
+<td>
+<p>Number of PCs to store</p>
+</td></tr>
+<tr valign="top"><td><code>genes.print</code></td>
+<td>
+<p>Number of genes to print for each PC</p>
+</td></tr>
+<tr valign="top"><td><code>use.imputed</code></td>
+<td>
+<p>Run PCA on imputed values (FALSE by default)</p>
+</td></tr>
+<tr valign="top"><td><code>rev.pca</code></td>
+<td>
+<p>By default computes the PCA on the cell x gene matrix. Setting to true will compute it on gene x cell matrix.</p>
+</td></tr>
+<tr valign="top"><td><code>...</code></td>
+<td>
+<p>Additional arguments to be passed to prcomp</p>
+</td></tr>
+</table>
+
+
+<h3>Value</h3>
+
+<p>Returns Seurat object with an PCA embedding (object@pca.rot) and
+gene projection matrix (object@pca.x). The PCA object itself is stored in
+object@pca.obj[[1]]
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

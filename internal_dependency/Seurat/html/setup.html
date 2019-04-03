@@ -1,0 +1,99 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Setup Seurat object</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for Setup {Seurat}"><tr><td>Setup {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Setup Seurat object</h2>
+
+<h3>Description</h3>
+
+<p>Setup and initialize basic parameters of the Seurat object
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+Setup(object, project, min.cells = 3, min.genes = 1000, is.expr = 0,
+  do.logNormalize = T, total.expr = 10000, do.scale = TRUE,
+  do.center = TRUE, names.field = 1, names.delim = "_",
+  meta.data = NULL, save.raw = TRUE)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>project</code></td>
+<td>
+<p>Project name (string)</p>
+</td></tr>
+<tr valign="top"><td><code>min.cells</code></td>
+<td>
+<p>Include genes with detected expression in at least this
+many cells</p>
+</td></tr>
+<tr valign="top"><td><code>min.genes</code></td>
+<td>
+<p>Include cells where at least this many genes are detected</p>
+</td></tr>
+<tr valign="top"><td><code>is.expr</code></td>
+<td>
+<p>Expression threshold for 'detected' gene</p>
+</td></tr>
+<tr valign="top"><td><code>do.logNormalize</code></td>
+<td>
+<p>whether to normalize the expression data per cell and transform to log space.</p>
+</td></tr>
+<tr valign="top"><td><code>total.expr</code></td>
+<td>
+<p>scale factor in the log normalization</p>
+</td></tr>
+<tr valign="top"><td><code>do.scale</code></td>
+<td>
+<p>In object@scale.data, perform row-scaling (gene-based
+z-score)</p>
+</td></tr>
+<tr valign="top"><td><code>do.center</code></td>
+<td>
+<p>In object@scale.data, perform row-centering (gene-based
+centering)</p>
+</td></tr>
+<tr valign="top"><td><code>names.field</code></td>
+<td>
+<p>For the initial identity class for each cell, choose this
+field from the cell's column name</p>
+</td></tr>
+<tr valign="top"><td><code>names.delim</code></td>
+<td>
+<p>For the initial identity class for each cell, choose this
+delimiter from the cell's column name</p>
+</td></tr>
+<tr valign="top"><td><code>meta.data</code></td>
+<td>
+<p>Additional metadata to add to the Seurat object. Should be
+a data frame where the rows are cell names, and the columns are additional
+metadata fields</p>
+</td></tr>
+<tr valign="top"><td><code>save.raw</code></td>
+<td>
+<p>TRUE by default. If FALSE, do not save the unmodified data in object@raw.data
+which will save memory downstream for large datasets</p>
+</td></tr>
+</table>
+
+
+<h3>Value</h3>
+
+<p>Seurat object. Fields modified include object@data,
+object@scale.data, object@data.info, object@ident
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Plot tSNE map</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for TSNEPlot {Seurat}"><tr><td>TSNEPlot {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Plot tSNE map</h2>
+
+<h3>Description</h3>
+
+<p>Graphs the output of a tSNE analysis
+Cells are colored by their identity class.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+TSNEPlot(object, do.label = FALSE, pt.size = 1, label.size = 4,
+  cells.use = NULL, colors.use = NULL, ...)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>do.label</code></td>
+<td>
+<p>FALSE by default. If TRUE, plots an alternate view where the center of each
+cluster is labeled</p>
+</td></tr>
+<tr valign="top"><td><code>pt.size</code></td>
+<td>
+<p>Set the point size</p>
+</td></tr>
+<tr valign="top"><td><code>label.size</code></td>
+<td>
+<p>Set the size of the text labels</p>
+</td></tr>
+<tr valign="top"><td><code>cells.use</code></td>
+<td>
+<p>Vector of cell names to use in the plot.</p>
+</td></tr>
+<tr valign="top"><td><code>colors.use</code></td>
+<td>
+<p>Manually set the color palette to use for the points</p>
+</td></tr>
+<tr valign="top"><td><code>...</code></td>
+<td>
+<p>Additional parameters to DimPlot, for example, which dimensions to plot.</p>
+</td></tr>
+</table>
+
+
+<h3>Details</h3>
+
+<p>This function is a wrapper for DimPlot. See ?DimPlot for a full list of possible
+arguments which can be passed in here.
+</p>
+
+
+<h3>See Also</h3>
+
+<p>DimPlot
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

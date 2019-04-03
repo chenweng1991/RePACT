@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Project Principal Components Analysis onto full dataset</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for ProjectPCA {Seurat}"><tr><td>ProjectPCA {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Project Principal Components Analysis onto full dataset</h2>
+
+<h3>Description</h3>
+
+<p>Takes a pre-computed PCA (typically calculated on a subset of genes) and
+projects this onto the entire dataset (all genes). Note that the cell
+loadings (PCA rotation matrices) remains unchanged, but now there are gene
+scores for all genes.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+ProjectPCA(object, do.print = TRUE, pcs.print = 5, pcs.store = 30,
+  genes.print = 30, replace.pc = FALSE, do.center = FALSE)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>do.print</code></td>
+<td>
+<p>Print top genes associated with the projected PCs</p>
+</td></tr>
+<tr valign="top"><td><code>pcs.print</code></td>
+<td>
+<p>Number of PCs to print genes for</p>
+</td></tr>
+<tr valign="top"><td><code>pcs.store</code></td>
+<td>
+<p>Number of PCs to store (default is 30)</p>
+</td></tr>
+<tr valign="top"><td><code>genes.print</code></td>
+<td>
+<p>Number of genes with highest/lowest loadings to print for
+each PC</p>
+</td></tr>
+<tr valign="top"><td><code>replace.pc</code></td>
+<td>
+<p>Replace the existing PCA (overwite object@pca.x), not done
+by default.</p>
+</td></tr>
+<tr valign="top"><td><code>do.center</code></td>
+<td>
+<p>Center the dataset prior to projection (should be set to TRUE)</p>
+</td></tr>
+</table>
+
+
+<h3>Value</h3>
+
+<p>Returns Seurat object with the projected PCA values in
+object@pca.x.full
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

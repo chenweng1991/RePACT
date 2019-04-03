@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Add Metadata</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for AddMetaData {Seurat}"><tr><td>AddMetaData {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Add Metadata</h2>
+
+<h3>Description</h3>
+
+<p>Adds additional data for single cells to the Seurat object. Can be any piece
+of information associated with a cell (examples include read depth,
+alignment rate, experimental batch, or subpopulation identity). The
+advantage of adding it to the Seurat object is so that it can be
+analyzed/visualized using FetchData, VlnPlot, GenePlot, SubsetData, etc.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+AddMetaData(object, metadata, col.name = NULL)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>metadata</code></td>
+<td>
+<p>Data frame where the row names are cell names (note : these
+must correspond exactly to the items in object@cell.names), and the columns
+are additional metadata items.</p>
+</td></tr>
+<tr valign="top"><td><code>col.name</code></td>
+<td>
+<p>Name for metadata if passing in single vector of information</p>
+</td></tr>
+</table>
+
+
+<h3>Value</h3>
+
+<p>Seurat object where the additional metadata has been added as
+columns in object@data.info
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

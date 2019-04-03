@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Add samples into existing Seurat object.</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for AddSamples {Seurat}"><tr><td>AddSamples {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Add samples into existing Seurat object.</h2>
+
+<h3>Description</h3>
+
+<p>Add samples into existing Seurat object.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+AddSamples(object, new.data, min.genes = 2500, names.field = 1,
+  names.delim = "_")
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>new.data</code></td>
+<td>
+<p>Data to be added to the object</p>
+</td></tr>
+<tr valign="top"><td><code>min.genes</code></td>
+<td>
+<p>Gene threshold for new data. Discard all cells with fewer genes detected</p>
+</td></tr>
+<tr valign="top"><td><code>names.field</code></td>
+<td>
+<p>For the initial identity class for each cell, choose this
+field from the cell's column name</p>
+</td></tr>
+<tr valign="top"><td><code>names.delim</code></td>
+<td>
+<p>For the initial identity class for each cell, choose this
+delimiter from the cell's column name</p>
+</td></tr>
+</table>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

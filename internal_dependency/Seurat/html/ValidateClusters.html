@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Cluster Validation</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for ValidateClusters {Seurat}"><tr><td>ValidateClusters {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Cluster Validation</h2>
+
+<h3>Description</h3>
+
+<p>Methods for validating the legitimacy of clusters using
+classification. SVMs are used as the basis for the classification.
+Merging is done based on the connectivity from an SNN graph.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+ValidateClusters(object, pc.use = NULL, top.genes = 30,
+  min.connectivity = 0.01, acc.cutoff = 0.9, verbose = TRUE)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>pc.use</code></td>
+<td>
+<p>Which PCs to use for model construction</p>
+</td></tr>
+<tr valign="top"><td><code>top.genes</code></td>
+<td>
+<p>Use the top X genes for model construction</p>
+</td></tr>
+<tr valign="top"><td><code>min.connectivity</code></td>
+<td>
+<p>Threshold of connectedness for comparison
+of two clusters</p>
+</td></tr>
+<tr valign="top"><td><code>acc.cutoff</code></td>
+<td>
+<p>Accuracy cutoff for classifier</p>
+</td></tr>
+<tr valign="top"><td><code>verbose</code></td>
+<td>
+<p>Controls whether to display progress and merge results</p>
+</td></tr>
+</table>
+
+
+<h3>Value</h3>
+
+<p>Returns a Seurat object, object@ident has been updated with
+new cluster info
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

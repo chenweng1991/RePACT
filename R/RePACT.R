@@ -303,12 +303,13 @@ Tjct.core.gen<-function(object=NULL,binnumber=20,qcut=0.05)
 #' @param table1.name  The name of a csv file  for upregulated genes"XX.traj.up.genes-q0.05top0.06.csv"
 #' @param table2.name  The name of a csv file  for upregulated genes"XX.traj.up.genes-q0.05top0.06.csv"
 #' @param rankcut The percentile to be shown on the heatmap. default is 0.06
+#' @param colorset The color pallete"Set1" "Set2" "Set3"
 #' @return  A list of upregulated and downregulated trajectory genes.
 #' @export
 #' @examples
 #' Tjct.core.plot(BMI.tjct.ob,BMI.tjct.2nd.ob,pheno="BMI",f1.name="BMI.tjct.10d.violin.pdf",f2.name="BMI.tjct.his.pdf",f3.name="BMI.tjct.trj.heatmap.pdf",f3.height=14,f3.tittle="cell type:Changing genes on phenotype trajectory\ntop6%",table1.name="BMI.tjct.traj.up.genes-q0.05Full.csv",table2.name="BMI.tjct.traj.dowb.genes-q0.05Full.csv",rankcut=0.05)
 
-Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.violin.pdf",f2.name="XX.his.pdf",f3.name="XX.trj.heatmap.pdf",f3.height=12,f3.tittle="cell type:Changing genes on phenotype trajectory\ntop6%",table1.name="XX.traj.up.genes-q0.05top0.06.csv",table2.name="XX.traj.dowb.genes-q0.05top0.06.csv",rankcut=0.06)
+Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.violin.pdf",f2.name="XX.his.pdf",f3.name="XX.trj.heatmap.pdf",f3.height=12,f3.tittle="cell type:Changing genes on phenotype trajectory\ntop6%",table1.name="XX.traj.up.genes-q0.05top0.06.csv",table2.name="XX.traj.dowb.genes-q0.05top0.06.csv",rankcut=0.06,colorset="Set1")
 {
 	Do_heatmap<-function(bindata,df1,df2,rankname,cutoff=0.3,title,hardadd=NULL,last=T,insertinto=0,doreturn=F){
 	require(ggplot2)
@@ -331,7 +332,7 @@ Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.v
 	bindata<-bindata[,c(DEgenelist,"tag")]
 	bindata<-data.frame(apply(bindata[,-ncol(bindata)],2,normalize_01),bin=bindata[,ncol(bindata)])
 	bindata.m<-reshape2::melt(bindata,id.vars="bin")
-	p<-ggplot(bindata.m)+aes(bin,variable,fill=value)+geom_tile()+scale_fill_gradient2(low="white",high="red",mid="orange",midpoint=0.6)
+	p<-ggplot(bindata.m)+aes(bin,variable,fill=value)+geom_tile()+scale_fill_gradient2(low="white",high="red",mid="orange",midpoint=0.6)+labs(y="Variable genes")
 	grid.arrange(p,top=title)
 	if (doreturn)
 	return(p)
@@ -371,14 +372,14 @@ Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.v
 		pdf(f2.name)
 		p1<-ggplot(object$PCanfpheno)+aes(pseudo.index)+geom_histogram(fill="orange")+geom_vline(xintercept=raw.bin[[2]],linetype=5,size=0.25)
 		p2<-ggplot(object$PCanfpheno)+aes(pseudo.index,residues,color=Sample)+geom_point(size=0.3)+geom_vline(xintercept=raw.bin[[2]],linetype=5,size=0.25)
-		p3<-ggplot(object$PCanfpheno)+aes(pseudo.index,fill=Sample)+geom_histogram(position="fill")+geom_vline(xintercept=raw.bin[[2]],linetype=5,size=0.25)+scale_fill_brewer(palette="Set2")
-		p4<-ggplot(object$PCanfpheno)+aes(pseudo.index,fill=Sample)+geom_histogram(position="stack")+geom_vline(xintercept=raw.bin[[2]],linetype=5,size=0.25)+scale_fill_brewer(palette="Set2")
+		p3<-ggplot(object$PCanfpheno)+aes(pseudo.index,fill=Sample)+geom_histogram(position="fill")+geom_vline(xintercept=raw.bin[[2]],linetype=5,size=0.25)+scale_fill_brewer(palette=colorset)
+		p4<-ggplot(object$PCanfpheno)+aes(pseudo.index,fill=Sample)+geom_histogram(position="stack")+geom_vline(xintercept=raw.bin[[2]],linetype=5,size=0.25)+scale_fill_brewer(palette=colorset)
 		grid.arrange(p1,p2,ncol=1)
 		grid.arrange(p3,p4,ncol=1)
 		dev.off()
 		print("start to plot f3")
 		pdf(f3.name,height=f3.height)
-		Do_heatmap(bin.data,df1=BINlinear.result.summarized$UP,df2=BINlinear.result.summarized$DOWN,rankname="rank",cutoff=rankcut,title="XX:Changing genes on XX trajectory\ntop6%")  # cutoff is the rank cutoff
+		Do_heatmap(bin.data,df1=BINlinear.result.summarized$UP,df2=BINlinear.result.summarized$DOWN,rankname="rank",cutoff=rankcut,title=,f3.tittle)  # cutoff is the rank cutoff
 		dev.off()
 		print("start to print out tables")
 		write.csv(BINlinear.result.summarized$UP,table1.name)

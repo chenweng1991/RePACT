@@ -1,0 +1,85 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Vizualization of multiple features</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for FeatureHeatmap {Seurat}"><tr><td>FeatureHeatmap {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Vizualization of multiple features</h2>
+
+<h3>Description</h3>
+
+<p>Similar to FeaturePlot, however, also splits the plot by visualizing each
+identity class separately.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+FeatureHeatmap(object, features.plot, dim.1 = 1, dim.2 = 2,
+  idents.use = NULL, pt.size = 2, cols.use = rev(heat.colors(10)),
+  pch.use = 16, reduction.use = "tsne")
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>features.plot</code></td>
+<td>
+<p>Vector of features to plot</p>
+</td></tr>
+<tr valign="top"><td><code>dim.1</code></td>
+<td>
+<p>Dimension for x-axis (default 1)</p>
+</td></tr>
+<tr valign="top"><td><code>dim.2</code></td>
+<td>
+<p>Dimension for y-axis (default 2)</p>
+</td></tr>
+<tr valign="top"><td><code>idents.use</code></td>
+<td>
+<p>Which identity classes to display (default is all identity
+classes)</p>
+</td></tr>
+<tr valign="top"><td><code>pt.size</code></td>
+<td>
+<p>Adjust point size for plotting</p>
+</td></tr>
+<tr valign="top"><td><code>cols.use</code></td>
+<td>
+<p>Ordered vector of colors to use for plotting. Default is
+heat.colors(10).</p>
+</td></tr>
+<tr valign="top"><td><code>pch.use</code></td>
+<td>
+<p>Pch for plotting</p>
+</td></tr>
+<tr valign="top"><td><code>reduction.use</code></td>
+<td>
+<p>Which dimensionality reduction to use. Default is
+&quot;tsne&quot;, can also be &quot;pca&quot;, or &quot;ica&quot;, assuming these are precomputed.</p>
+</td></tr>
+</table>
+
+
+<h3>Details</h3>
+
+<p>Particularly useful for seeing if the same groups of cells co-exhibit a
+common feature (i.e. co-express a gene), even within an identity class. Best
+understood by example.
+</p>
+
+
+<h3>Value</h3>
+
+<p>No return value, only a graphical output
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

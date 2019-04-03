@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Quantitative refinement of spatial inferences</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for RefinedMapping {Seurat}"><tr><td>RefinedMapping {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Quantitative refinement of spatial inferences</h2>
+
+<h3>Description</h3>
+
+<p>Refines the initial mapping with more complex models that allow gene
+expression to vary quantitatively across bins (instead of 'on' or 'off'),
+and that also considers the covariance structure between genes.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+RefinedMapping(object, genes.use)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>genes.use</code></td>
+<td>
+<p>Genes to use to drive the refinement procedure.</p>
+</td></tr>
+</table>
+
+
+<h3>Details</h3>
+
+<p>Full details given in spatial mapping manuscript.
+</p>
+
+
+<h3>Value</h3>
+
+<p>Seurat object, where mapping probabilities for each bin are stored
+in object@final.prob
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>
