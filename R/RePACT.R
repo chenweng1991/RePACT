@@ -32,7 +32,6 @@ Prepareforpseudoregress.g<-function(object=NULL,PCrange=1:10,phenodic.use=NULL,p
 	{
 		PCandPheno<-KeyPCinformation
 	}
-		PCandPheno[, pheno]<-factor(PCandPheno[, pheno])
 		PCnames<-paste("PCandPheno$PC",PCrange,sep="")
 		form<-formula(paste("PCandPheno[,pheno]",paste(PCnames,collapse="+"),sep="~"))
 		if(linear==T)
@@ -46,6 +45,7 @@ Prepareforpseudoregress.g<-function(object=NULL,PCrange=1:10,phenodic.use=NULL,p
 			model.para<-list(modelsummary=model.para)
 		}else
 		{
+			PCandPheno[, pheno]<-factor(PCandPheno[, pheno])
 			model<-glm(form,family="binomial")
 			p<-ggplot(PCandPheno)+aes_string("PC1","PC2",color=pheno)+geom_point()+scale_color_brewer(palette="Set2")+geom_abline(slope=model$coefficients[3]/model$coefficients[2])
 			PCandPheno<-cbind(PCandPheno,pseudo.index=model$linear.predictors,residues=model$residuals)

@@ -39,7 +39,7 @@ We provide the digital gene expression(dge) matrix data from each donor. There a
 **T2D1, T2D2 and T2D3** are T2D donors
 
 
-##### 1. We share all dge raw data here
+#### 1. We share all dge raw data here
 
 ```
 data(H1.D.clean.dge,H2.D.clean.dge,H3.D.clean.dge,H4.D.clean.dge,H5.D.clean.dge,H6.D.clean.dge,T2D1.D.clean.dge,T2D1.D.clean.dge,T2D2.D.clean.dge,T2D3.D.clean.dge)
@@ -55,12 +55,12 @@ H1.D.clean.dge[1:5,1:5]
 ```
 
 
-##### 2. Normalization and clustering for multiple samples
+#### 2. Normalization and clustering for multiple samples
 One line commend **_`docluster.multi()`_** for basic dimension reduction and clustering analysis.It takes multiple dge matrix data as input, and output a Seurat style metadata object. In this example, I took H1 and H2 as smallest data as a short example
 ```
 H1H2.ob<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge),nms=c("H1","H2"))
 ```
-##### 3. Visulization
+#### 3. Visulization
 With the analyzed object above, we provide a commend **_`Fullplot_v2()`_** to generate major informative figures. **_`Fullplot_v2()`_** will generate a PDF file containing
 - A. tSNE plot colored by default cluster
 - B. heatmap showing signature genes for each cluster
@@ -77,7 +77,7 @@ The above two line will generate example PDFs for [H1H2](https://github.com/chen
 > Example figure , left panel is the tsne illustration of cell clustering. It is colored by unsupervised cell cluster. Right panel is the same tSNE plot with interested genes highlighted . Color intensity reflect expression level in Z score.
 ![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1.png)
 
-##### 4. Cell type specific secondary clustering
+#### 4. Cell type specific secondary clustering
 For a robust RePACT, we suggest to redo clustering with a focus on one specific cell type across different Samples.
 
 To extract sample information coupled with each single cell, which is the important info in RePACT to bridge between single cell and potential interesting phenotype
@@ -114,14 +114,58 @@ data(phenotable)
 8   T2D2      M  61 28.10 5.20%       T
 9   T2D3      M  51 35.59 7.10%       T
 ```
-Below, we are using our full data for the RePACT demonstration because a good number of cells and samples with variable phenotypes are important to give enough power to uild a decent model. We share our full non-stressed beta cell dataset after filtering,
+Below, we are using our beta cell only dataset for the RePACT demonstration because a good number of cells and samples with variable phenotypes are essential to give enough power to build a decent model. We share our full non-stressed beta cell dataset after filtering here.
 ```
 data(Allbeta.dge,sample.dict.full)
-Beta.HSnegonly.ob<-docluster.single(500,Allbeta.dge,dict=Sample.dict.full)
+Beta.HSnegonly.ob<-docluster.single(500,Allbeta.dge,dict=sample.dict.full)
+Fullplot_v2(Beta.HSnegonly.ob,"./PDF/Beta.HSnegonly.fullplot.pdf",signiture=NULL,doreturn=T,cell.use=100)
 ```
+The analyzed only beta cells look like [this](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/Beta.HSnegonly.fullplot.pdf)
+
 #### 2. Build RePACT model
-
-
+The goal is to create a model that fit the relationship between the phenotype and single cell transcriptome. We provide
+two regression models. For binary phenotype, we fit the model by logistic regression, for example disease status, samples are either healthy or diabetic, denoted as H and T (`linear=F`). For continuous phenotype for example,BMI, samples have different index values. We fit the model using linear regression(`linear=T`). The parameter `PCrange` determine how many PCs to use for the phenotype prediction. The default PC numbers are PC1 through PC10
+```
+T2D.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenodic,pheno="Disease",linear=F)
+BMI.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenodic,pheno="BMI",linear=T)
+```
+The intepretation of RePACT model object, I will use T2D.tjct.ob as an example.
+- Use `BMI.tjct.ob$model` to check out the model and significance of each PC as a phenotype predictor
+```
+BMI.tjct.ob$model.para
+# Call:
+# lm(formula = form)
+#
+# Residuals:
+#      Min       1Q   Median       3Q      Max
+# -14.4640  -2.2229   0.3886   2.6119  15.3527
+#
+# Coefficients:
+#                 Estimate Std. Error t value Pr(>|t|)
+# (Intercept)     30.12522    0.06325 476.280  < 2e-16 ***
+# PCandPheno$PC1   0.49493    0.02053  24.108  < 2e-16 ***
+# PCandPheno$PC2   1.42528    0.02686  53.064  < 2e-16 ***
+# PCandPheno$PC3   0.39394    0.03201  12.309  < 2e-16 ***
+# PCandPheno$PC4   0.49144    0.03320  14.803  < 2e-16 ***
+# PCandPheno$PC5  -0.38479    0.03393 -11.341  < 2e-16 ***
+# PCandPheno$PC6   0.18351    0.03783   4.850 1.28e-06 ***
+# PCandPheno$PC7  -0.27799    0.03870  -7.183 8.13e-13 ***
+# PCandPheno$PC8   0.46673    0.04217  11.068  < 2e-16 ***
+# PCandPheno$PC9   0.12591    0.04318   2.916  0.00357 **
+# PCandPheno$PC10  0.75956    0.04427  17.157  < 2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#
+# Residual standard error: 3.95 on 3889 degrees of freedom
+# Multiple R-squared:  0.5306,	Adjusted R-squared:  0.5294
+# F-statistic: 439.7 on 10 and 3889 DF,  p-value: < 2.2e-16
+```
+- For a partial illustration `BMI.tjct.ob$reg.plot.2d` shows the corelation only between PC1,PC2 and the phenotype (BMI). But the real model is on 10 dimension
+![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/BMI.2dplot.png)
+- For a 3D illustration of phenotype against PC1~PC3, use commend `Toplot3Dtjct`
+```
+Toplot3Dtjct(T2D.tjct.ob,PCrange=c(1,3,4),pheno="Disease",linear=F,multiplotname="PDF/test.pdf",titlename="tittle")
+```
 
 
 1.  Do clustering for one dge sample
