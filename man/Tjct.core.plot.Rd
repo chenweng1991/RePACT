@@ -19,19 +19,19 @@ Tjct.core.plot(object = NULL, secondobj = NULL, pheno = NULL,
 
 \item{pheno}{This is the column we are interested for RePACT gotta be the same with previous Prepareforpseudoregress.g}
 
-\item{f1.name}{The pdf name of violin plot "XX.10d.violin.pdf".  10 d means 10 PCs used.}
+\item{f1.name}{The pdf name of violin plot e.g,"XX.10d.violin.pdf".  10 d means 10 PCs used.}
 
-\item{f2.name}{The pdf name of histgram "XX.his.pdf".}
+\item{f2.name}{The pdf name of histgram e.g,"XX.his.pdf".}
 
-\item{f3.name}{The pdf name of the heatmap "XX.trj.heatmap.pdf".}
+\item{f3.name}{The pdf name of the heatmap e.g,"XX.trj.heatmap.pdf".}
 
 \item{f3.height}{The pdf heigh for heatmap, change this when the number of genes shown is changed, default is 12}
 
-\item{f3.tittle}{The figure title for heatmap."cell type:Changing genes on phenotype trajectory\ntop6%"}
+\item{f3.tittle}{The figure title for heatmap.e.g,"cell type:Changing genes on phenotype trajectory\ntop 0.06"}
 
-\item{table1.name}{The name of a csv file  for upregulated genes"XX.traj.up.genes-q0.05top0.06.csv"}
+\item{table1.name}{The name of a csv file  for upregulated genes e.g,"XX.traj.up.genes-q0.05top0.06.csv"}
 
-\item{table2.name}{The name of a csv file  for upregulated genes"XX.traj.up.genes-q0.05top0.06.csv"}
+\item{table2.name}{The name of a csv file  for upregulated genes e.g,"XX.traj.up.genes-q0.05top0.06.csv"}
 
 \item{rankcut}{The percentile to be shown on the heatmap. default is 0.06}
 
