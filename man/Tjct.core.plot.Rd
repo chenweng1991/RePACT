@@ -27,7 +27,7 @@ Tjct.core.plot(object = NULL, secondobj = NULL, pheno = NULL,
 
 \item{f3.height}{The pdf heigh for heatmap, change this when the number of genes shown is changed, default is 12}
 
-\item{f3.tittle}{The figure title for heatmap.e.g,"cell type:Changing genes on phenotype trajectory\ntop 0.06"}
+\item{f3.tittle}{The figure title for heatmap.e.g,"cell type:Changing genes on phenotype trajectory top 0.06"}
 
 \item{table1.name}{The name of a csv file  for upregulated genes e.g,"XX.traj.up.genes-q0.05top0.06.csv"}
 

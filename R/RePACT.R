@@ -5,8 +5,9 @@
 #' @param PCrange The PC dimensions used for modeling
 #' @param phenodic.use If there are extra data to be added, then this is a dataframe taht with one column named "Sample" for merge, also, the object@data.info has to have a column named "Sample". Otherwise, if the column for regression is already in object@data.info and phenodic.use=NULL
 #' @param pheno  The column name used for modeling
-#' '@param linear If true, perform a linear regression, else, perform a logistic regression
+#' @param linear If true, perform a linear regression, else, perform a logistic regression
 #' @return  The output include: PCvariance this summrize the percentage of variance chosen PC can explain; PCanfpheno this is a data frame including PC information, phenotype information as well as pseudo.index and residues after regression; $object.raw.withinfo: this is a datafrom of raw data with pseudo.index and residues; $model: this is the model. reg.plot.2d this is the 2d regression plot. model.para: this is the regression parameter.
+#' @import gridExtra pscl
 #' @export
 #' @examples
 #' BMI.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenodic,pheno="BMI",linear=T)
@@ -16,7 +17,7 @@ Prepareforpseudoregress.g<-function(object=NULL,PCrange=1:10,phenodic.use=NULL,p
 	require(ggplot2)
 	require(RColorBrewer)
 	require(gridExtra)
-
+	library(pscl)
 	if (is.null(object))
 	{
 		print("The parameter to enter is like : object=NULL,PCrange=1:40,phenodic.use=phenodic,pheno,linear=T,fam='binomial'")
@@ -73,23 +74,24 @@ Prepareforpseudoregress.g<-function(object=NULL,PCrange=1:10,phenodic.use=NULL,p
 #' @param PCrange The PC dimensions used for 3D plotting,  usually pick top 3 significant pCs
 #' @param pheno the column name for regression
 #' @param linear If true, perform a linear regression, else, perform a logistic regression
-#' '@param fam   For logistic regression, "binomial" is used for glm
-#' '@param enlag    this is to adjust the length of regression line, default is 10
-#' '@param decided   If TRUE, then only plot one based on angles by theta, and phi, otherwise, plot a series of figures in one big PDF.
-#' '@param theta   A number indicating angle, I will work if decided
-#' '@param phi    A another number indicating angle, I will work if decided
-#' '@param singeplotname   a pdf file name if I have a decided single pdf
-#' '@param multiplotname  a pdf file name if generating a series of figures
-#' '@param titlename  This is the name in figure title
-#' '@param theta   A number indicating angle, I will work if decided
-
-#' @return  The output include: PCvariance this summrize the percentage of variance chosen PC can explain; PCanfpheno this is a data frame including PC information, phenotype information as well as pseudo.index and residues after regression; $object.raw.withinfo: this is a datafrom of raw data with pseudo.index and residues; $model: this is the model. reg.plot.2d this is the 2d regression plot. model.para: this is the regression parameter.
+#' @param fam   For logistic regression, "binomial" is used for glm
+#' @param enlag    this is to adjust the length of regression line, default is 10
+#' @param decided   If TRUE, then only plot one based on angles by theta, and phi, otherwise, plot a series of figures in one big PDF.
+#' @param theta   A number indicating angle, I will work if decided
+#' @param phi    A another number indicating angle, I will work if decided
+#' @param singeplotname   a pdf file name if I have a decided single pdf
+#' @param multiplotname  a pdf file name if generating a series of figures
+#' @param titlename  This is the name in figure title
+#' @param theta   A number indicating angle, I will work if decided
+#' @return The output include: PCvariance this summrize the percentage of variance chosen PC can explain; PCanfpheno this is a data frame including PC information, phenotype information as well as pseudo.index and residues after regression; $object.raw.withinfo: this is a datafrom of raw data with pseudo.index and residues; $model: this is the model. reg.plot.2d this is the 2d regression plot. model.para: this is the regression parameter.
+#' @import 	plot3D
 #' @export
 #' @examples
 #' Toplot3Dtjct(T2D.tjct.ob,PCrange=c(1,3,4),pheno="disease",linear=F,multiplotname="test.pdf",titlename="tittle")
 
 Toplot3Dtjct<-function(trajectory.ob=tjct.ob,PCrange=1:3,pheno,linear=T, fam="binomial",enlag=10,decided=F,theta=60,phi=180,singeplotname=NULL,multiplotname,titlename="PC1-3 BMI trajectory regression\n")
 {
+	library(plot3D)
 	Getpallet2<-function(wN,topn,highlen,lowcolor="white")
 	{
 	myred<-colorRampPalette(brewer.pal(9,"Reds"))(highlen)
@@ -299,7 +301,7 @@ Tjct.core.gen<-function(object=NULL,binnumber=20,qcut=0.05)
 #' @param f2.name  The pdf name of histgram e.g,"XX.his.pdf".
 #' @param f3.name  The pdf name of the heatmap e.g,"XX.trj.heatmap.pdf".
 #' @param f3.height  The pdf heigh for heatmap, change this when the number of genes shown is changed, default is 12
-#' @param f3.tittle  The figure title for heatmap.e.g,"cell type:Changing genes on phenotype trajectory\ntop 0.06"
+#' @param f3.tittle  The figure title for heatmap.e.g,"cell type:Changing genes on phenotype trajectory top 0.06"
 #' @param table1.name  The name of a csv file  for upregulated genes e.g,"XX.traj.up.genes-q0.05top0.06.csv"
 #' @param table2.name  The name of a csv file  for upregulated genes e.g,"XX.traj.up.genes-q0.05top0.06.csv"
 #' @param rankcut The percentile to be shown on the heatmap. default is 0.06

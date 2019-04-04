@@ -16,16 +16,25 @@ Toplot3Dtjct(trajectory.ob = tjct.ob, PCrange = 1:3, pheno,
 
 \item{pheno}{the column name for regression}
 
-\item{linear}{If true, perform a linear regression, else, perform a logistic regression
-'@param fam   For logistic regression, "binomial" is used for glm
-'@param enlag    this is to adjust the length of regression line, default is 10
-'@param decided   If TRUE, then only plot one based on angles by theta, and phi, otherwise, plot a series of figures in one big PDF.
-'@param theta   A number indicating angle, I will work if decided
-'@param phi    A another number indicating angle, I will work if decided
-'@param singeplotname   a pdf file name if I have a decided single pdf
-'@param multiplotname  a pdf file name if generating a series of figures
-'@param titlename  This is the name in figure title
-'@param theta   A number indicating angle, I will work if decided}
+\item{linear}{If true, perform a linear regression, else, perform a logistic regression}
+
+\item{fam}{For logistic regression, "binomial" is used for glm}
+
+\item{enlag}{this is to adjust the length of regression line, default is 10}
+
+\item{decided}{If TRUE, then only plot one based on angles by theta, and phi, otherwise, plot a series of figures in one big PDF.}
+
+\item{theta}{A number indicating angle, I will work if decided}
+
+\item{phi}{A another number indicating angle, I will work if decided}
+
+\item{singeplotname}{a pdf file name if I have a decided single pdf}
+
+\item{multiplotname}{a pdf file name if generating a series of figures}
+
+\item{titlename}{This is the name in figure title}
+
+\item{theta}{A number indicating angle, I will work if decided}
 }
 \value{
 The output include: PCvariance this summrize the percentage of variance chosen PC can explain; PCanfpheno this is a data frame including PC information, phenotype information as well as pseudo.index and residues after regression; $object.raw.withinfo: this is a datafrom of raw data with pseudo.index and residues; $model: this is the model. reg.plot.2d this is the 2d regression plot. model.para: this is the regression parameter.

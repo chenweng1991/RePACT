@@ -14,8 +14,9 @@ Prepareforpseudoregress.g(object = NULL, PCrange = 1:10,
 
 \item{phenodic.use}{If there are extra data to be added, then this is a dataframe taht with one column named "Sample" for merge, also, the object@data.info has to have a column named "Sample". Otherwise, if the column for regression is already in object@data.info and phenodic.use=NULL}
 
-\item{pheno}{The column name used for modeling
-'@param linear If true, perform a linear regression, else, perform a logistic regression}
+\item{pheno}{The column name used for modeling}
+
+\item{linear}{If true, perform a linear regression, else, perform a logistic regression}
 }
 \value{
 The output include: PCvariance this summrize the percentage of variance chosen PC can explain; PCanfpheno this is a data frame including PC information, phenotype information as well as pseudo.index and residues after regression; $object.raw.withinfo: this is a datafrom of raw data with pseudo.index and residues; $model: this is the model. reg.plot.2d this is the 2d regression plot. model.para: this is the regression parameter.

@@ -13,9 +13,8 @@ install("/mnt/NFS/homeGene/JinLab/cxw486/lib/dropseqlib/analysisscript/RePACT")
 library("RePACT")
 
 devtools::install_github("chenweng1991/RePACT")
-setwd("/mnt/NFS/homeGene/JinLab/cxw486/lib/dropseqlib/analysisscript/RePACT")
-setwd("/mnt/NFS/homeGene/JinLab/cxw486/Dropseq/DGEanalysis/Islet412+511+919+T2D1+S4/workplaceLink/2017.9.21.revise")
 
+library(Seurat, lib.loc="/mnt/NFS/homeGene/JinLab/cxw486/R/x86_64-redhat-linux-gnu-library/3.3")
 ```
 ---
 

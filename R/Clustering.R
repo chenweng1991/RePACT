@@ -6,6 +6,7 @@
 #' @param name a customized name for this clustering object
 #' @param reso the clustering resolusion, default=0.6
 #' @return this will return the clean and square plot
+#' @import Seurat ggplot2 Matrix RColorBrewer
 #' @export
 #' @examples
 #' S7rock_1.ob<-docluster(dgepreprocess(s7.RockII_1.dge,500,norowname=T),GetinformativeGene(dgepreprocess(s7.RockII_1.dge,500,norowname=T),500),"s7.RockII_1",reso=0.6)
