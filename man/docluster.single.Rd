@@ -14,6 +14,10 @@ docluster.single(Number, Mergedset, nm1 = "", dict = NULL,
 
 \item{nm1}{the name for this sample}
 
+\item{dict}{if there is any sample information, use it!}
+
+\item{reso}{the resolution for clustering, the default is 0.6, change it accordingly}
+
 \item{cellmin}{the minimum cell number that express a specific gene as  hard filtering for an expressed gene}
 
 \item{geneminThe}{the minimum gene number as hard filtering for a valid cell}

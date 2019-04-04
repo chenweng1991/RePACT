@@ -171,6 +171,7 @@ Toplot3Dtjct<-function(trajectory.ob=tjct.ob,PCrange=1:3,pheno,linear=T, fam="bi
 #' @param binnumber  Number of bins to divide the whole trajectory, default is 20.  This caqn vary upon total cell numbers available
 #' @param qcut  q value cutoff to be used ti call a trajectory gene hits.
 #' @return  A list of upregulated and downregulated trajectory genes.
+#' @import qvalue
 #' @export
 #' @examples
 #' T2D.tjct.2nd.ob<-Tjct.core.gen(T2D.tjct.ob)
