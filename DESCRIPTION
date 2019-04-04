@@ -1,8 +1,8 @@
-Package: EZsinglecell
-Title: What the Package Does (one line, title case)
+Package: RePACT
+Title:Regressing Principle components for the Assembly of Continuous Trajectory
 Version: 0.0.0.9000
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Authors@R: person("Chen", "Weng", email = "cxw486@case.edu", role = c("aut", "cre"))
+Description: We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data. The key step is to find the best trajectory to rank single cells (e.g. β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and T2D (denoted by a dichotomous variable T2D). It can be potentially applied to any other interesting phenotype
 Depends: R (>= 3.5.1)
 License: What license is it under?
 Encoding: UTF-8
