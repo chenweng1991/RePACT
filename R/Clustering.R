@@ -340,6 +340,8 @@ docluster.multi<-function(Number,txcutoff=500,sets,nms,selected=NULL,filterstuff
 #' @param Number number of the most informative genes for clustering, default is 500
 #' @param Mergedset  The dge matrix
 #' @param nm1 the name for this sample
+#' @param dict if there is any sample information, use it!
+#' @param reso the resolution for clustering, the default is 0.6, change it accordingly
 #' @param geneminThe the minimum gene number as hard filtering for a valid cell
 #' @param cellmin the minimum cell number that express a specific gene as  hard filtering for an expressed gene
 #' @return this will return a serurat object for other analysis
@@ -353,7 +355,6 @@ require(Seurat)
 require(ggplot2)
 require(Matrix)
 require(RColorBrewer)
-
 Mergedset[is.na(Mergedset)]<-0
 if(length(which(rowSums(Mergedset)==0)))
 {
