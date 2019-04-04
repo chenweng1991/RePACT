@@ -309,7 +309,7 @@ Tjct.core.gen<-function(object=NULL,binnumber=20,qcut=0.05)
 #' @examples
 #' Tjct.core.plot(BMI.tjct.ob,BMI.tjct.2nd.ob,pheno="BMI",f1.name="BMI.tjct.10d.violin.pdf",f2.name="BMI.tjct.his.pdf",f3.name="BMI.tjct.trj.heatmap.pdf",f3.height=14,f3.tittle="cell type:Changing genes on phenotype trajectory\ntop6%",table1.name="BMI.tjct.traj.up.genes-q0.05Full.csv",table2.name="BMI.tjct.traj.dowb.genes-q0.05Full.csv",rankcut=0.05)
 
-Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.violin.pdf",f2.name="XX.his.pdf",f3.name="XX.trj.heatmap.pdf",f3.height=12,f3.tittle="cell type:Changing genes on phenotype trajectory\ntop6%",table1.name="XX.traj.up.genes-q0.05top0.06.csv",table2.name="XX.traj.dowb.genes-q0.05top0.06.csv",rankcut=0.06,colorset="Set1")
+Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.violin.pdf",f2.name="XX.his.pdf",f3.name="XX.trj.heatmap.pdf",f3.height=12,f3.tittle="cell type:Changing genes on phenotype trajectory\ntop6%",table1.name="XX.traj.up.genes-q0.05top0.06.csv",table2.name="XX.traj.dowb.genes-q0.05top0.06.csv",rankcut=0.06,colorset="Set1",do.return=F)
 {
 	Do_heatmap<-function(bindata,df1,df2,rankname,cutoff=0.3,title,hardadd=NULL,last=T,insertinto=0,doreturn=F){
 	require(ggplot2)
@@ -332,8 +332,7 @@ Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.v
 	bindata<-bindata[,c(DEgenelist,"tag")]
 	bindata<-data.frame(apply(bindata[,-ncol(bindata)],2,normalize_01),bin=bindata[,ncol(bindata)])
 	bindata.m<-reshape2::melt(bindata,id.vars="bin")
-	p<-ggplot(bindata.m)+aes(bin,variable,fill=value)+geom_tile()+scale_fill_gradient2(low="white",high="red",mid="orange",midpoint=0.6)+labs(y="Variable genes")
-	grid.arrange(p,top=title)
+	p<-ggplot(bindata.m)+aes(bin,variable,fill=value)+geom_tile()+scale_fill_gradient2(low="white",high="red",mid="orange",midpoint=0.6)+labs(y="Variable genes")+ggtitle(title)
 	if (doreturn)
 	return(p)
 	}
@@ -379,10 +378,14 @@ Tjct.core.plot<-function(object=NULL,secondobj=NULL,pheno=NULL,f1.name="XX.10d.v
 		dev.off()
 		print("start to plot f3")
 		pdf(f3.name,height=f3.height)
-		Do_heatmap(bin.data,df1=BINlinear.result.summarized$UP,df2=BINlinear.result.summarized$DOWN,rankname="rank",cutoff=rankcut,title=,f3.tittle)  # cutoff is the rank cutoff
+		p5<-Do_heatmap(bin.data,df1=BINlinear.result.summarized$UP,df2=BINlinear.result.summarized$DOWN,rankname="rank",cutoff=rankcut,title=f3.tittle,doreturn=do.return)  # cutoff is the rank cutoff
 		dev.off()
 		print("start to print out tables")
 		write.csv(BINlinear.result.summarized$UP,table1.name)
 		write.csv(BINlinear.result.summarized$DOWN,table2.name)
+		if(do.return){
+			return(list(p,p1,p2,p3,p4,p5))
+		}
+
 	}
 }

@@ -126,8 +126,8 @@ The analyzed only beta cells look like [this](https://github.com/chenweng1991/Re
 The goal is to create a model that fit the relationship between the phenotype and single cell transcriptome. We provide
 two regression models. For binary phenotype, we fit the model by logistic regression, for example disease status, samples are either healthy or diabetic, denoted as H and T (`linear=F`). For continuous phenotype for example,BMI, samples have different index values. We fit the model using linear regression(`linear=T`). The parameter `PCrange` determine how many PCs to use for the phenotype prediction. The default PC numbers are PC1 through PC10
 ```
-T2D.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenodic,pheno="Disease",linear=F)
-BMI.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenodic,pheno="BMI",linear=T)
+T2D.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenotable,pheno="Disease",linear=F)
+BMI.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenotable,pheno="BMI",linear=T)
 ```
 I will use `T2D.tjct.ob` as an example to explain the RePACT model object,.
 - Use `BMI.tjct.ob$model` to check out the model and significance of each PC as a phenotype predictor
@@ -181,7 +181,7 @@ I will explain the most important components in this trajectory object using `T2
 #### 4. Generate and visulize intepretable RePACT results
 
 ```
-Tjct.core.plot(T2D.tjct.ob,T2D.tjct.2nd.ob,pheno="Disease",f1.name="T2D.tjct.10d.violin.pdf",f2.name="T2D.tjct.his.pdf",f3.name="T2D.tjct.trj.heatmap.pdf",f3.height=16,f3.tittle="Beta cell:Variable genes on T2D trajectory\ntop3%\nLow T2D --------> High T2D",table1.name="T2D.tjct.traj.up.genes-q0.05Full.csv",table2.name="T2D.tjct.traj.dowb.genes-q0.05Full.csv",rankcut=0.03,colorset="Set1")
+Tjct.core.plot(T2D.tjct.ob,T2D.tjct.2nd.ob,pheno="Disease",f1.name="T2D.tjct.10d.violin.pdf",f2.name="T2D.tjct.his.pdf",f3.name="T2D.tjct.trj.heatmap.pdf",f3.height=10,f3.tittle="Beta cell:Variable genes on T2D trajectory\ntop1%\nLow T2D ---------------> High T2D",table1.name="T2D.tjct.traj.up.genes-q0.05Full.csv",table2.name="T2D.tjct.traj.dowb.genes-q0.05Full.csv",rankcut=0.01,colorset="Set1")
 ```
 This command will generate 3 figures and two tables
 - [T2D.tjct.10d.violin.pdf](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/T2D.tjct.10d.violin.pdf)  The violin plot like was shown in our manuscript, shows the single cell distribution along the pseudo-index
@@ -189,13 +189,8 @@ This command will generate 3 figures and two tables
 - [T2D.tjct.trj.heatmap.pdf](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/T2D.tjct.trj.heatmap.pdf) The heatmap to show top X% genes as `rankcut` decided that is highly variable along the trajectory.
 - [T2D.tjct.traj.dowb.genes-q0.05Full.csv](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/T2D.tjct.traj.dowb.genes-q0.05Full.csv)  Gene list of significantly down-regulated along trajectory
 -  [T2D.tjct.traj.up.genes-q0.05Full.csv](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/T2D.tjct.traj.up.genes-q0.05Full.csv)  Gene list of significantly up-regulated along trajectory
->T2D.tjct.10d.violin
-![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/T2D.tjct.10d.violin.png)
-
->T2D.tjct.trj.heatmap
-![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/T2D.tjct.trj.heatmap.png)
-
-
+>T2D.tjct.10d.violin and T2D.tjct.trj.heatmap.pdf
+![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/RePACT.violinheat.png))
 
 
 
