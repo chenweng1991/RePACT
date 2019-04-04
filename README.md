@@ -16,16 +16,14 @@ install_github("satijalab/seurat", ref = "3bd092a")  The Seurat version we used 
 install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl")) # Install these packages if you do not have it.
 devtools::install_github("chenweng1991/RePACT") #install RePACT
 library("RePACT")
-```of
-Before running a main RePACT analysis, We highly recommend to perform cell clustering to generate a clear picture of cell type composition in the data. With cell type informrmation annotated, we can then focus on ONE specific cell type across different donors for a "clean" disease trajectory analysis.We integrate some major functions from [Seurat](https://satijalab.org/seurat/) into our pipeline for basic dimension reduction and clustering analysis.
-
+```
 ---
 
 ## Preliminary clustering analysis
 
-We provide the digital gene expression(dge) matrix data from each donor. There are 9 dge matrix data in total.
-**H1, H2, H3, H4, H5, H6** are healthy donors
-**T2D1, T2D2 and T2D3** are T2D donors
+Before running a main RePACT analysis, We highly recommend to perform cell clustering to generate a clear picture of cell type composition in the data. With cell type informrmation annotated, we can then focus on ONE specific cell type across different donors for a "clean" disease trajectory analysis.We integrate some major functions from [Seurat](https://satijalab.org/seurat/) into our pipeline for basic dimension reduction and clustering analysis.
+
+We provide the digital gene expression(dge) matrix data from each donor. There are 9 dge matrix data in total. **H1, H2, H3, H4, H5, H6** are healthy donors. **T2D1, T2D2 and T2D3** are T2D donors
 
 
 #### 1. We share all dge raw data here
@@ -180,13 +178,3 @@ This command will generate 3 figures and two tables
 -  [T2D.tjct.traj.up.genes-q0.05Full.csv](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/T2D.tjct.traj.up.genes-q0.05Full.csv)  Gene list of significantly up-regulated along trajectory
 >T2D.tjct.10d.violin and T2D.tjct.trj.heatmap.pdf
 ![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/RePACT.violinheat.png))
-
-
-
-
-
-
-  ### To do
-
-  incorporate the  library
-  library(Seurat, lib.loc="/mnt/NFS/homeGene/JinLab/cxw486/R/x86_64-redhat-linux-gnu-library/3.3")
