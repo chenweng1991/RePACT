@@ -9,8 +9,10 @@ We developed RePACT (Regressing Principle components for the Assembly of Continu
 ---
 
 ## Install
+
 ```
-# Install development version from GitHub:
+# We use R 3.5
+#Install development version from GitHub:
 install.packages("devtools")
 ```
 ```
