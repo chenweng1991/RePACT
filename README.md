@@ -1,21 +1,5 @@
 # RePACT
----
 
-
-## Install
-```
-# Install development version from GitHub:
-# install.packages("devtools")
-
-install("/mnt/NFS/homeGene/JinLab/cxw486/lib/dropseqlib/analysisscript/RePACT")
-
-
-library("RePACT")
-
-devtools::install_github("chenweng1991/RePACT")
-
-library(Seurat, lib.loc="/mnt/NFS/homeGene/JinLab/cxw486/R/x86_64-redhat-linux-gnu-library/3.3")
-```
 ---
 
 ## Introduction
@@ -28,7 +12,17 @@ We integrate some major functions from [Seurat](https://satijalab.org/seurat/) i
 Here, we share our raw data as well as some necessary intermediate data to demonstrate the usage of RePACT toolkit.
 
 Please follow the pipeline below that examplify the RePACT analysis to generate major results in our manuscript ([Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043))
+---
 
+## Install
+```
+# Install development version from GitHub:
+# install.packages("devtools")
+install_github("satijalab/seurat", ref = "3bd092a")  The Seurat version we used in this RePACT release
+install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl")) # Install these packages if you do not have it.
+devtools::install_github("chenweng1991/RePACT") #install RePACT
+library("RePACT")
+```
 ---
 
 ## Preliminary clustering analysis
