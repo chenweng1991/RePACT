@@ -3,15 +3,9 @@
 ---
 
 ## Introduction
-We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data. The key step is to find the best trajectory to rank single cells (e.g. β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and T2D (denoted by a dichotomous variable T2D).
+We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data.The goal of RePACT is to find the best trajectory to rank single cells (e.g. in our case, the β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and type II diabetes(T2D (denoted by a dichotomous variable T2D).Please follow the pipeline below that serve as a tutorial for RePACT analysis. It generates major results in our manuscript ([Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043)). Here, we share our raw data as well as some necessary intermediate data to demonstrate the usage of RePACT toolkit.
 
-Before running a main RePACT analysis, We highly recommend to perform cell clustering to generate a clear picture of cell type composition in the data. With cell type informrmation annotated, we can then focus on ONE specific cell type across different donors for a "clean" disease trajectory analysis.
-
-We integrate some major functions from [Seurat](https://satijalab.org/seurat/) into our pipeline for basic dimension reduction and clustering analysis.
-
-Here, we share our raw data as well as some necessary intermediate data to demonstrate the usage of RePACT toolkit.
-
-Please follow the pipeline below that examplify the RePACT analysis to generate major results in our manuscript ([Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043))
+![](https://raw.githubusercontent.com/chenweng1991/RePACT/image/Graphic_abstract.jpg)
 ---
 
 ## Install
@@ -22,7 +16,9 @@ install_github("satijalab/seurat", ref = "3bd092a")  The Seurat version we used 
 install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl")) # Install these packages if you do not have it.
 devtools::install_github("chenweng1991/RePACT") #install RePACT
 library("RePACT")
-```
+```of
+Before running a main RePACT analysis, We highly recommend to perform cell clustering to generate a clear picture of cell type composition in the data. With cell type informrmation annotated, we can then focus on ONE specific cell type across different donors for a "clean" disease trajectory analysis.We integrate some major functions from [Seurat](https://satijalab.org/seurat/) into our pipeline for basic dimension reduction and clustering analysis.
+
 ---
 
 ## Preliminary clustering analysis
@@ -64,7 +60,7 @@ With the analyzed object above, we provide a commend **_`Fullplot_v2()`_** to ge
 - G. tSNE staining to show marker genes
 
 ```
-H1H2.fullplot<-Fullplot_v2(H1H2.ob,"./PDF/example.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T)
+H1H2.fullplot<-Fullplot_v2(H1H2.ob,"example.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T)
 ```
 The above two line will generate example PDFs for [H1H2](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/example.fullplot.pdf)
 > Example figure , left panel is the tsne illustration of cell clustering. It is colored by unsupervised cell cluster. Right panel is the same tSNE plot with interested genes highlighted . Color intensity reflect expression level in Z score.
@@ -84,7 +80,7 @@ H1H2.C1.ob<-docluster.single(500,H1H2.C1.raw,dict=Sample.dict)
 ```
 As above, you may want to visulize it by Fullplot_v2
 ```
-H1H2.C1.fullplot<-Fullplot_v2(H1H2.C1.ob,"./PDF/H1H2.C1.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T,cell.use=100)
+H1H2.C1.fullplot<-Fullplot_v2(H1H2.C1.ob,"H1H2.C1.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T,cell.use=100)
 ```
 
 ## RePACT main section
@@ -111,7 +107,7 @@ Below, we are using our beta cell only dataset for the RePACT demonstration beca
 ```
 data(Allbeta.dge,sample.dict.full)
 Beta.HSnegonly.ob<-docluster.single(500,Allbeta.dge,dict=sample.dict.full)
-Fullplot_v2(Beta.HSnegonly.ob,"./PDF/Beta.HSnegonly.fullplot.pdf",signiture=NULL,doreturn=T,cell.use=100)
+Fullplot_v2(Beta.HSnegonly.ob,"Beta.HSnegonly.fullplot.pdf",signiture=NULL,doreturn=T,cell.use=100)
 ```
 The analyzed only beta cells look like [this](https://github.com/chenweng1991/RePACT/blob/RePACT.organized/PDF/Beta.HSnegonly.fullplot.pdf)
 
@@ -158,7 +154,7 @@ BMI.tjct.ob$model.para
 
 *Optional* For a 3D illustration of phenotype against any three PCs, use commend `Toplot3Dtjct`
 ```
-Toplot3Dtjct(T2D.tjct.ob,PCrange=c(1,3,4),pheno="Disease",linear=F,multiplotname="PDF/test.pdf",titlename="tittle")
+Toplot3Dtjct(T2D.tjct.ob,PCrange=c(1,3,4),pheno="Disease",linear=F,multiplotname="test.pdf",titlename="tittle")
 ```
 
 #### 3. Reconstruct disease trajectory
