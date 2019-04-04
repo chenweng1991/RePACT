@@ -16,7 +16,7 @@ We developed RePACT (Regressing Principle components for the Assembly of Continu
 install.packages("devtools")
 ```
 ```
-install_github("satijalab/seurat", ref = "3bd092a")  #The Seurat version we used in this RePACT release
+devtools::install_github("satijalab/seurat", ref = "3bd092a")  #The Seurat version we used in this RePACT release
 ```
 ```
 install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl")) # Install these packages if you do not have it.
