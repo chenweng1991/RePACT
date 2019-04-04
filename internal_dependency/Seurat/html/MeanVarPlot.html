@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Identify variable genes</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for MeanVarPlot {Seurat}"><tr><td>MeanVarPlot {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Identify variable genes</h2>
+
+<h3>Description</h3>
+
+<p>Identifies genes that are outliers on a 'mean variability plot'. First, uses
+a function to calculate average expression (fxn.x) and dispersion (fxn.y)
+for each gene. Next, divides genes into num.bin (deafult 20) bins based on
+their average expression, and calculates z-scores for dispersion within each
+bin. The purpose of this is to identify variable genes while controlling for
+the strong relationship between variability and average expression.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+MeanVarPlot(object, fxn.x = expMean, fxn.y = logVarDivMean,
+  do.plot = TRUE, set.var.genes = TRUE, do.text = TRUE,
+  x.low.cutoff = 0.1, x.high.cutoff = 8, y.cutoff = 2,
+  y.high.cutoff = Inf, cex.use = 0.5, cex.text.use = 0.5,
+  do.spike = FALSE, pch.use = 16, col.use = "black",
+  spike.col.use = "red", plot.both = FALSE, do.contour = TRUE,
+  contour.lwd = 3, contour.col = "white", contour.lty = 2, num.bin = 20,
+  do.recalc = TRUE)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>fxn.x</code></td>
+<td>
+<p>Function to compute x-axis value (average expression). Default
+is to take the mean of the detected (i.e. non-zero) values</p>
+</td></tr>
+<tr valign="top"><td><code>fxn.y</code></td>
+<td>
+<p>Function to compute y-axis value (dispersion). Default is to
+take the standard deviation of all values/</p>
+</td></tr>
+<tr valign="top"><td><code>do.plot</code></td>
+<td>
+<p>Plot the average/dispersion relationship</p>
+</td></tr>
+<tr valign="top"><td><code>set.var.genes</code></td>
+<td>
+<p>Set object@var.genes to the identified variable genes
+(default is TRUE)</p>
+</td></tr>
+<tr valign="top"><td><code>do.text</code></td>
+<td>
+<p>Add text names of variable genes to plot (default is TRUE)</p>
+</td></tr>
+<tr valign="top"><td><code>x.low.cutoff</code></td>
+<td>
+<p>Bottom cutoff on x-axis for identifying variable genes</p>
+</td></tr>
+<tr valign="top"><td><code>x.high.cutoff</code></td>
+<td>
+<p>Top cutoff on x-axis for identifying variable genes</p>
+</td></tr>
+<tr valign="top"><td><code>y.cutoff</code></td>
+<td>
+<p>Bottom cutoff on y-axis for identifying variable genes</p>
+</td></tr>
+<tr valign="top"><td><code>y.high.cutoff</code></td>
+<td>
+<p>Top cutoff on y-axis for identifying variable genes</p>
+</td></tr>
+<tr valign="top"><td><code>cex.use</code></td>
+<td>
+<p>Point size</p>
+</td></tr>
+<tr valign="top"><td><code>cex.text.use</code></td>
+<td>
+<p>Text size</p>
+</td></tr>
+<tr valign="top"><td><code>do.spike</code></td>
+<td>
+<p>FALSE by default. If TRUE, color all genes starting with ^ERCC a different color</p>
+</td></tr>
+<tr valign="top"><td><code>pch.use</code></td>
+<td>
+<p>Pch value for points</p>
+</td></tr>
+<tr valign="top"><td><code>col.use</code></td>
+<td>
+<p>Color to use</p>
+</td></tr>
+<tr valign="top"><td><code>spike.col.use</code></td>
+<td>
+<p>if do.spike, color for spike-in genes</p>
+</td></tr>
+<tr valign="top"><td><code>plot.both</code></td>
+<td>
+<p>Plot both the scaled and non-scaled graphs.</p>
+</td></tr>
+<tr valign="top"><td><code>do.contour</code></td>
+<td>
+<p>Draw contour lines calculated based on all genes</p>
+</td></tr>
+<tr valign="top"><td><code>contour.lwd</code></td>
+<td>
+<p>Contour line width</p>
+</td></tr>
+<tr valign="top"><td><code>contour.col</code></td>
+<td>
+<p>Contour line color</p>
+</td></tr>
+<tr valign="top"><td><code>contour.lty</code></td>
+<td>
+<p>Contour line type</p>
+</td></tr>
+<tr valign="top"><td><code>num.bin</code></td>
+<td>
+<p>Total number of bins to use in the scaled analysis (default
+is 20)</p>
+</td></tr>
+<tr valign="top"><td><code>do.recalc</code></td>
+<td>
+<p>TRUE by default. If FALSE, plots and selects variable genes without recalculating statistics for each gene.</p>
+</td></tr>
+</table>
+
+
+<h3>Details</h3>
+
+<p>Exact parameter settings may vary empirically from dataset to dataset, and
+based on visual inspection of the plot.
+Setting the y.cutoff parameter to 2 identifies genes that are more than two standard
+deviations away from the average dispersion within a bin. The default X-axis function
+is the mean expression level, and for Y-axis it is the log(Variance/mean). All mean/variance
+calculations are not performed in log-space, but the results are reported in log-space -
+see relevant functions for exact details.
+</p>
+
+
+<h3>Value</h3>
+
+<p>Returns a Seurat object, placing variable genes in object@var.genes.
+The result of all analysis is stored in object@mean.var
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

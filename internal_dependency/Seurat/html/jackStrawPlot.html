@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: JackStraw Plot</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for JackStrawPlot {Seurat}"><tr><td>JackStrawPlot {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>JackStraw Plot</h2>
+
+<h3>Description</h3>
+
+<p>Plots the results of the JackStraw analysis for PCA significance. For each
+PC, plots a QQ-plot comparing the distribution of p-values for all genes
+across each PC, compared with a uniform distribution. Also determines a
+p-value for the overall significance of each PC (see Details).
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+JackStrawPlot(object, PCs = 1:5, nCol = 3, score.thresh = 1e-05,
+  plot.x.lim = 0.1, plot.y.lim = 0.3)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat plot</p>
+</td></tr>
+<tr valign="top"><td><code>PCs</code></td>
+<td>
+<p>Which PCs to examine</p>
+</td></tr>
+<tr valign="top"><td><code>nCol</code></td>
+<td>
+<p>Number of columns</p>
+</td></tr>
+<tr valign="top"><td><code>score.thresh</code></td>
+<td>
+<p>Threshold to use for the proportion test of PC
+significance (see Details)</p>
+</td></tr>
+<tr valign="top"><td><code>plot.x.lim</code></td>
+<td>
+<p>X-axis maximum on each QQ plot.</p>
+</td></tr>
+<tr valign="top"><td><code>plot.y.lim</code></td>
+<td>
+<p>Y-axis maximum on each QQ plot.</p>
+</td></tr>
+</table>
+
+
+<h3>Details</h3>
+
+<p>Significant PCs should show a p-value distribution (black curve) that is
+strongly skewed to the left compared to the null distribution (dashed line)
+The p-value for each PC is based on a proportion test comparing the number
+of genes with a p-value below a particular threshold (score.thresh), compared with the
+proportion of genes expected under a uniform distribution of p-values.
+</p>
+
+
+<h3>Value</h3>
+
+<p>No value returned, just the PC plots.
+</p>
+
+
+<h3>Author(s)</h3>
+
+<p>Thanks to Omri Wurtzel for integrating with ggplot
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

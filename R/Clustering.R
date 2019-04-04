@@ -346,7 +346,7 @@ docluster.multi<-function(Number,txcutoff=500,sets,nms,selected=NULL,filterstuff
 #' @examples
 #' GetinformativeGene(dgepreprocess(s7.RockII_1.dge,500,norowname=T),500)
 
-docluster.single<-function(Number,Mergedset,nm1,dict=NULL,reso=0.6,genemin=200,cellmin=3)
+docluster.single<-function(Number,Mergedset,nm1="",dict=NULL,reso=0.6,genemin=200,cellmin=3)
 {
 require(Seurat)
 require(ggplot2)
@@ -354,11 +354,11 @@ require(Matrix)
 require(RColorBrewer)
 
 Mergedset[is.na(Mergedset)]<-0
-if(length((which(rowSums(Mergedset)==0))))
+if(length(which(rowSums(Mergedset)==0)))
 {
 Mergedset<-Mergedset[-which(rowSums(Mergedset)==0),]
 }
-data<-Matrix(Mergedset)
+data<-Matrix(as.matrix(Mergedset))
 mylist<-GetinformativeGene(Mergedset,Number)
 pbmc <- new("seurat", raw.data = data)
 pbmc <- Setup(pbmc, min.cells = cellmin, min.genes = genemin, do.logNormalize = T, total.expr = 1e4, project = "10X_PBMC")
@@ -374,6 +374,7 @@ if (!is.null(dict))
 pbmc@data.info$nGene<-as.numeric(as.character(pbmc@data.info$nGene))
 pbmc@data.info$nUMI<-as.numeric(as.character(pbmc@data.info$nUMI))
 pbmc@data.info$percent.mito<-as.numeric(as.character(pbmc@data.info$percent.mito))
+
 pbmc <- SubsetData(pbmc, subset.name = "nGene", accept.high = 2500)
 pbmc <- SubsetData(pbmc, subset.name = "percent.mito", accept.high = 0.05)
 pbmc <- RegressOut(pbmc, latent.vars = c("nUMI", "percent.mito"))

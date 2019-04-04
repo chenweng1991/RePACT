@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Averaged gene expression by identity class</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for AverageExpression {Seurat}"><tr><td>AverageExpression {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Averaged gene expression by identity class</h2>
+
+<h3>Description</h3>
+
+<p>Returns gene expression for an 'average' single cell in each identity class
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+AverageExpression(object, genes.use = NULL, return.seurat = F,
+  add.ident = NULL, ...)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>genes.use</code></td>
+<td>
+<p>Genes to analyze. Default is all genes.</p>
+</td></tr>
+<tr valign="top"><td><code>return.seurat</code></td>
+<td>
+<p>Whether to return the data as a Seurat object. Default is false.</p>
+</td></tr>
+<tr valign="top"><td><code>add.ident</code></td>
+<td>
+<p>Add identity label to class</p>
+</td></tr>
+<tr valign="top"><td><code>...</code></td>
+<td>
+<p>Arguments to be passed to methods such as <code><a href="setup.html">Setup</a></code></p>
+</td></tr>
+</table>
+
+
+<h3>Details</h3>
+
+<p>Output is in log-space, but averaging is done in non-log space.
+</p>
+
+
+<h3>Value</h3>
+
+<p>Returns a matrix with genes as rows, identity classes as columns.
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

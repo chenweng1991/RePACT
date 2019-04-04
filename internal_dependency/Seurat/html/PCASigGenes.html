@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>R: Significant genes from a PCA</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="R.css" />
+</head><body>
+
+<table width="100%" summary="page for PCASigGenes {Seurat}"><tr><td>PCASigGenes {Seurat}</td><td style="text-align: right;">R Documentation</td></tr></table>
+
+<h2>Significant genes from a PCA</h2>
+
+<h3>Description</h3>
+
+<p>Returns a set of genes, based on the JackStraw analysis, that have
+statistically significant associations with a set of PCs.
+</p>
+
+
+<h3>Usage</h3>
+
+<pre>
+PCASigGenes(object, pcs.use, pval.cut = 0.1, use.full = TRUE,
+  max.per.pc = NULL)
+</pre>
+
+
+<h3>Arguments</h3>
+
+<table summary="R argblock">
+<tr valign="top"><td><code>object</code></td>
+<td>
+<p>Seurat object</p>
+</td></tr>
+<tr valign="top"><td><code>pcs.use</code></td>
+<td>
+<p>PCS to use.</p>
+</td></tr>
+<tr valign="top"><td><code>pval.cut</code></td>
+<td>
+<p>P-value cutoff</p>
+</td></tr>
+<tr valign="top"><td><code>use.full</code></td>
+<td>
+<p>Use the full list of genes (from the projected PCA). Assumes
+that ProjectPCA has been run. Default is TRUE</p>
+</td></tr>
+<tr valign="top"><td><code>max.per.pc</code></td>
+<td>
+<p>Maximum number of genes to return per PC. Used to avoid genes from one PC dominating the entire analysis.</p>
+</td></tr>
+</table>
+
+
+<h3>Value</h3>
+
+<p>A vector of genes whose p-values are statistically significant for
+at least one of the given PCs.
+</p>
+
+<hr /><div style="text-align: center;">[Package <em>Seurat</em> version 1.3.5 <a href="00Index.html">Index</a>]</div>
+</body></html>

@@ -24,8 +24,8 @@
 #' @examples
 #'Fullplot_v2(S7rock_1.ob,"S7rock_1.ob.pdf",topgene=NULL,resolusion="res.0.6",signiture=c("INS","GCG","SST","PPY","KRT19","COL1A2","REG1A","DNAJB1","GHRL"))
 Fullplot_v2<-function(object,name,topgene=NULL,resolusion="res.0.6",signiture=c("INS","GCG","SST","PPY","KRT19","COL1A2","REG1A","DNAJB1","GHRL"),p.tsnecluster=T,Pheatmap=T,p.tsnesample=T,p.pcacluster=T,p.pcasample=T,darwPCdrive=T,cell.use=500,color="Paired",PC34=F,dotsize=0.1,heatmapannosize=0.5,doreturn=F,pdfwidth=7,pdfheight=7){
-require(RColorBrewer)
-require(Seurat)
+	require(RColorBrewer)
+	require(Seurat)
 	titlename<-paste(unique(object@data.info$Sample),collapse="_")
 	if(Pheatmap==T)
 	{
@@ -105,17 +105,19 @@ require(Seurat)
 
 	if (!is.null(signiture))
 	{
+
 		sig.plot<-GettsnesignatureSuper(object,object,signiture=signiture,toreturn=T)
-    cycles<-as.integer(length(sig.plot)/6)
-		if(cycles==0)
-		{
-			grid.arrange(grobs=sig.plot)
+		fig.list<-c(fig.list,list(sig.plot))
+		cycles<-as.integer(length(sig.plot)/6)
+		if(length(sig.plot)>6){
+			for (i in 0:(cycles-1)){
+				grid.arrange(grobs=sig.plot[(6*i+1):(6*i+6)])
+			}
+			if(length(sig.plot)%%6){
+				grid.arrange(grobs=sig.plot[(6*cycles+1):length(sig.plot)])
+			}
 		}else{
-		    for (i in 0:(cycles-1)){
-      			grid.arrange(grobs=sig.plot[(6*i+1):(6*i+6)])
-    		 }
-				 if(length(sig.plot)%%6)
-    		grid.arrange(grobs=sig.plot[(6*cycles+1):length(sig.plot)])
+			grid.arrange(grobs=sig.plot)
 		}
 	}
 	dev.off()
