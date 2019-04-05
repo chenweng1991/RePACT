@@ -135,7 +135,7 @@ two regression models. For binary phenotype, we fit the model by logistic regres
 T2D.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenotable,pheno="Disease",linear=F)
 BMI.tjct.ob<-Prepareforpseudoregress.g(Beta.HSnegonly.ob,PCrange=1:10,phenodic.use=phenotable,pheno="BMI",linear=T)
 ```
-I will use `T2D.tjct.ob` as an example to explain the RePACT model object,.
+I will use `BMI.tjct.ob` as an example to explain the RePACT model object,.
 - Use `BMI.tjct.ob$model` to check out the model and significance of each PC as a phenotype predictor
 ```
 BMI.tjct.ob$model.para
