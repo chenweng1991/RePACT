@@ -32,8 +32,8 @@ BiocManager::install("qvalue", version = "3.8")  # Install qvalue if you do not 
 devtools::install_github("chenweng1991/RePACT") #install RePACT
 library("RePACT")
 ```
-Install tips
-- We also test the installation on windows with R3.5.3,where [Rtools35](https://cloud.r-project.org/) is probably needed for a proper installation. Install it Rtools manually.
+Other install tips
+- We also test the installation on windows with R3.5.3,where [Rtools35](https://cloud.r-project.org/) is probably needed for a proper installation.
 
 
 ---
