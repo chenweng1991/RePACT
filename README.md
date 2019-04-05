@@ -3,7 +3,7 @@
 ---
 
 ## Introduction
-We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data.The goal of RePACT is to find the best trajectory to rank single cells (e.g. in our case, the β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and type II diabetes(T2D (denoted by a dichotomous variable T2D).Please follow the pipeline below that serve as a tutorial for RePACT analysis. It generates major results in our manuscript ([Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043)). Also, we share our raw data as well as some necessary intermediate data to demonstrate the usage of RePACT toolkit.
+We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data.The goal of RePACT is to find the best trajectory to rank single cells (e.g. in our case, the β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and type II diabetes(T2D) (denoted by a dichotomous variable T2D).Please follow the pipeline below that serve as a tutorial for RePACT analysis. It generates major results in our manuscript ([Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043)). Also, we share our raw data as well as some necessary intermediate data to demonstrate the usage of RePACT toolkit.
 
 ![](https://raw.githubusercontent.com/chenweng1991/RePACT/master/image/Graphic_abstract.jpg)
 ---
