@@ -62,7 +62,7 @@ H1.D.clean.dge[1:5,1:5]
 
 
 #### 2. Normalization and clustering for multiple samples
-One line commend **_`docluster.multi()`_** for basic dimension reduction and clustering analysis.It takes multiple dge matrix data as input, and output a Seurat style metadata object. In this example, I took H1 and H2 as smallest data as a short example
+One line commend **_`docluster.multi()`_** for basic dimension reduction and clustering analysis.It takes multiple dge matrix data as input, and output a Seurat style metadata object. In this example, I took H1 and H2 with relatively small data size as a quick example
 ```
 H1H2.ob<-docluster.multi(Number=500,txcutoff=500,sets=list(H1.D.clean.dge,H2.D.clean.dge),nms=c("H1","H2"))
 ```
@@ -84,18 +84,18 @@ The above two line will generate example PDFs for [H1H2](https://github.com/chen
 ![](https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/Fig1.png)
 
 #### 4. Cell type specific secondary clustering
-For a robust RePACT, we suggest to redo clustering with a focus on one specific cell type across different Samples.
+For a robust RePACT analysis, we suggest to redo clustering with a focus on one specific cell type across different Samples.
 
-To extract sample information coupled with each single cell, which is the important info in RePACT to bridge between single cell and potential interesting phenotype
+First, extract sample information(From which donor) of each single cell, which is important in RePACT to bridge between single cell and potential interesting phenotype that varied across different samples
 ```
 Sample.dict<-H1H2.ob@data.info[,"Sample",drop=F]
 ```
-We show an example of secondary clustering on insulin-positive cells, as is in the case above we choose cluster 1 Note, Sample.dict extracted should be input as adjoint info to maintain the sample info for each single cell
+We show an example of secondary clustering on insulin-positive cells, as is in the case above we choose cluster 1. Note: Sample.dict extracted above should be input as adjoint info to maintain the sample info for each single cell
 ```
 H1H2.C1.raw<-as.matrix(H1H2.ob@raw.data[,row.names(subset(H1H2.ob@data.info,res.0.6==1))])
 H1H2.C1.ob<-docluster.single(500,H1H2.C1.raw,dict=Sample.dict)
 ```
-As above, you may want to visulize it by Fullplot_v2
+You may want to visulize it by Fullplot_v2
 ```
 H1H2.C1.fullplot<-Fullplot_v2(H1H2.C1.ob,"H1H2.C1.fullplot.pdf",signiture=c("INS", "GCG", "SST", "PPY", "KRT19", "COL1A2"),doreturn=T,cell.use=100)
 ```
