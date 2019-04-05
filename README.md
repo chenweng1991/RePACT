@@ -19,13 +19,14 @@ install.packages("devtools")
 devtools::install_github("satijalab/seurat", ref = "3bd092a")  #The Seurat version we used in this RePACT release
 ```
 ```
-install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl"))# Install these packages if you do not have it. if it asks to update seurat, select **no**.
+install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl"))# Install these packages if you do not have it.
 ```
 ```
 if (!requireNamespace("BiocManager", quietly = TRUE)){
 install.packages("BiocManager")
 }
 BiocManager::install("qvalue", version = "3.8")  # Install qvalue if you do not have it.
+# if it asks to update seurat, select **no**.
 ```
 ```
 devtools::install_github("chenweng1991/RePACT") #install RePACT
