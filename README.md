@@ -11,7 +11,7 @@ We developed RePACT (Regressing Principle components for the Assembly of Continu
 ## Install
 
 ```
-# We use R 3.5
+
 #Install development version from GitHub:
 install.packages("devtools")
 ```
@@ -19,7 +19,7 @@ install.packages("devtools")
 devtools::install_github("satijalab/seurat", ref = "3bd092a")  #The Seurat version we used in this RePACT release
 ```
 ```
-install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl")) # Install these packages if you do not have it.
+install.packages(c("RColorBrewer","ggplot","dplyr","ggplot2","gridExtra","plot3D","pscl"))# Install these packages if you do not have it. if it asks to update seurat, select **no**.
 ```
 ```
 if (!requireNamespace("BiocManager", quietly = TRUE)){
@@ -31,6 +31,10 @@ BiocManager::install("qvalue", version = "3.8")  # Install qvalue if you do not 
 devtools::install_github("chenweng1991/RePACT") #install RePACT
 library("RePACT")
 ```
+Install tips
+- We also test the installation on windows with R3.5.3,where [Rtools35](https://cloud.r-project.org/) is probably needed for a proper installation. Install it Rtools manually.
+
+
 ---
 
 ## Preliminary clustering analysis
