@@ -103,7 +103,7 @@ H1H2.C1.fullplot<-Fullplot_v2(H1H2.C1.ob,"H1H2.C1.fullplot.pdf",signiture=c("INS
 ## RePACT main section
 ---
 #### 1. Things to prepare before started
-- First of all, the major input of RePACT pipeline is an preliminarily analyzed object from **_`docluster.multi()`_** as was shown in the previous section.  We suggest to use cell type specific data.
+- First of all, the major input of RePACT pipeline is an preliminarily analyzed object from **_`docluster.multi()`_** or **_`docluster.single()`_**as was shown in the previous section.  We suggest to use cell type specific data.
 - A table with phenotype information that would be used to build the model.
 In our case, the phenotype table look like below. When making your customized phenotype table, please follow this format, especially the first column, which is the sample name and must be the same as that was used in **_`docluster.multi()`_**, denoted in parameter `nms`. In our study, we used *BMI* as well as *Disease* to build the model respectively.
 ```
