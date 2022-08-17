@@ -1,3 +1,19 @@
+#' Tjct.core.plot.ss
+#'
+#' This function is to generate the PC scatterplots, Sample-wise pseudo Index violin plot, heatmaps for specified number of differentially genes across peusoindex.
+#' @param object, output of Prepareforpseudoregress.g function
+#' @param secondobj, output of Tjct.core.gen function
+#' @param phenodic.use, a dataframe contains Sample column(it refers to donor in this study), characteristics to compare(it referes to if the donor/cells are from healthy or T2D, or it can be continuous, e.g. BMI)
+#' @param pheno, the column name of the "characteristics to compare" in the phenodic.use dataframe
+#' @param top_gene_num, the number of differentially genes across peusoindex for heatmap visualization
+#' @param output_name, a path/outputname to write out the results to disk, including .rds, .csv, .pdf
+#' @param norm_index, if the pseudo index should be normalized
+#' @return the output files will be written to disk
+#' @import Seurat ggplot2 Matrix RColorBrewer gridExtra pscl
+#' @export
+#' @examples
+#' Tjct.core.plot.ss(RepACT.obj,RepACT.2nd.ob,pheno=pheno,phenodic.use=sub_phenotable,top_gene_num=15,output_name=output_name2,norm_index=T)
+
 Tjct.core.plot.ss <- function(object=NULL,secondobj=NULL,phenodic.use=NULL,pheno=NULL,top_gene_num=10,output_name,norm_index=F){
     do.return=T
     colorset="Set1"
