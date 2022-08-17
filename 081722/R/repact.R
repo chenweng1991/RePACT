@@ -1,4 +1,21 @@
-repact<-function(OBJ,pheno,is_continuous,output_name2,phenotable,norm_index=T,PCrange=1:20,SlopeCut=0){
+#' repact
+#'
+#' This function is to run repact on a Seurat object.
+#' @param OBJ, A scRNA Seurat (V3/V4), with PCs and clustering info
+#' @param pheno, the column name of the "characteristics to compare" in the phenodic.use dataframe
+#' @param is_continuous, if the "characteristics to compare" is continuous
+#' @param output_name2, a path/outputname to write out the results to disk, including .rds, .csv, .pdf
+#' @param phenotable, a dataframe contains Sample column(it refers to donor in this study), characteristics to compare(it referes to if the donor/cells are from healthy or T2D, or it can be continuous, e.g. BMI)
+#' @param norm_index, if the pseudo index should be normalized
+#' @param PCrange, Specified PCs for regression
+#' @param SlopeCut, the cutoff of slope to define differentially genes across pseudo index (n=binnumber)
+#' @return .rds, .csv, .pdf to disk
+#' @import Seurat ggplot2 Matrix RColorBrewer gridExtra pscl
+#' @export
+#' @examples
+#' repact(OBJ,"diseaseStat","F","diseaseStat",phenotable,norm_index=T,SlopeCut=0.05)
+
+repact <- function(OBJ,pheno,is_continuous,output_name2,phenotable,norm_index=T,PCrange=1:20,SlopeCut=0){
   sub_phenotable = phenotable[complete.cases(phenotable[,pheno]),]
   if(is_continuous == "T"){
     RepACT.obj<-Prepareforpseudoregress.g(OBJ,PCrange=PCrange,phenodic.use=sub_phenotable,pheno=pheno,linear=T)
