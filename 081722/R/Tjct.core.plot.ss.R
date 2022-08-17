@@ -105,7 +105,7 @@ Tjct.core.plot.ss <- function(object=NULL,secondobj=NULL,phenodic.use=NULL,pheno
             if(nrow(BINlinear.result.summarized$UP) != 0 | nrow(BINlinear.result.summarized$DOWN) != 0){
                     p5<-Do_heatmap(bin.data,df1=BINlinear.result.summarized$UP,df2=BINlinear.result.summarized$DOWN,rankname="rank",top_gene_num=top_gene_num)
             }
-            print(p)
+            #print(p)
             print(pp)
             if(nrow(BINlinear.result.summarized$UP) != 0 | nrow(BINlinear.result.summarized$DOWN) != 0){
                     print(p5)
