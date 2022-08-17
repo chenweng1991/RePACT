@@ -1,4 +1,17 @@
-Tjct.core.gen <- function(object=NULL,binnumber=20,qcut=0.05,norm_index=F,SlopeCut=0){
+#' Tjct.core.gen
+#'
+#' This function is to spearate cells into the specified number of bins based on even distance on PC space.
+#' @param object, output of Prepareforpseudoregress.g function
+#' @param binnumber, the number of bins separated based on even distance on PC space
+#' @param qcut, the cutoff of qvalue to define differentially genes across pseudo index (n=binnumber)
+#' @param norm_index, if the pseudo index should be normalized
+#' @param SlopeCut, the cutoff of slope to define differentially genes across pseudo index (n=binnumber)
+#' @import Seurat ggplot2 Matrix RColorBrewer gridExtra pscl qvalue
+#' @export
+#' @examples
+#' Tjct.core.gen(RepACT.obj, binnumber=20,norm_index=T,SlopeCut=SlopeCut)
+
+Tjct.core.gen <- function(object=NULL, binnumber=20, qcut=0.05, norm_index=F, SlopeCut=0){
         mydplyr<-function(df,by="tag",thefunction=mean)
         {
                 newdf<-c()
