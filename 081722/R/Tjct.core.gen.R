@@ -6,10 +6,11 @@
 #' @param qcut, the cutoff of qvalue to define differentially genes across pseudo index (n=binnumber)
 #' @param norm_index, if the pseudo index should be normalized
 #' @param SlopeCut, the cutoff of slope to define differentially genes across pseudo index (n=binnumber)
+#' @return a list contains geneUMI.dic, raw.bin, bin.data, binregress, BINlinear.result, BINlinear.result.summarized, parameter, FC.result
 #' @import Seurat ggplot2 Matrix RColorBrewer gridExtra pscl qvalue
 #' @export
 #' @examples
-#' Tjct.core.gen(RepACT.obj, binnumber=20,norm_index=T,SlopeCut=SlopeCut)
+#' Tjct.core.gen(RepACT.obj,binnumber=20,norm_index=T,SlopeCut=SlopeCut)
 
 Tjct.core.gen <- function(object=NULL, binnumber=20, qcut=0.05, norm_index=F, SlopeCut=0){
         mydplyr<-function(df,by="tag",thefunction=mean)
