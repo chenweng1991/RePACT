@@ -1,4 +1,19 @@
-Prepareforpseudoregress.g<-function(object=NULL,PCrange=1:10,phenodic.use=NULL,pheno,dotsize=0.3,linear=T){   
+#' Prepareforpseudoregress.g
+#'
+#' This function is to run regression (linear/logistic) based on the number of PCs, and characteristics of samples.
+#' @param object, A scRNA Seurat (V3/V4), with PCs and clustering info
+#' @param PCrange, Specified PCs for regression
+#' @param phenodic.use, a dataframe contains Sample column(it refers to donor in this study), characteristics to compare(it referes to if the donor/cells are from healthy or T2D, or it can be continuous, e.g. BMI)
+#' @param pheno, the column name of the "characteristics to compare" in the phenodic.use dataframe
+#' @param dotsize, the size of dots in the output plots
+#' @param linear, if the "characteristics to compare" is binary(e.g. if T2D) or continuous(e.g. BMI)
+#' @return The function return a list: "PCvariance", "PCanfpheno", "object.raw.withinfo", "model", "reg.plot.2d", "model.para"
+#' @import Seurat ggplot2 Matrix RColorBrewer gridExtra pscl
+#' @export
+#' @examples
+#' RepACT.obj<-Prepareforpseudoregress.g(OBJ,PCrange=PCrange,phenodic.use=sub_phenotable,pheno=pheno,linear=T)
+
+Prepareforpseudoregress.g <- function(object=NULL,PCrange=1:10,phenodic.use=NULL,pheno, dotsize=0.3, linear=T){   
     # if downsample==T, I'll do downsampling for donor3'
     require(ggplot2)
     require(RColorBrewer)
