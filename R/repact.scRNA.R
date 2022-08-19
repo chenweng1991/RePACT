@@ -15,7 +15,13 @@
 #' repact.scRNA.R(OBJ, PCrange=1:20,pheno="diseaseStat",is_continuous="F",norm_index=T,SlopeCut=0.05,output_name2="T2D_Beta.scRNA.RePACT")
 
 repact.scRNA <- function(OBJ,PCrange=1:20,pheno,is_continuous,norm_index=T,SlopeCut=0,output_name2){
+  require(Seurat)
+  require(ggplot2)
+  require(Matrix)
+  require(RColorBrewer)
   require(dplyr)
+  require(pscl)
+  require(gridExtra)
   phenotable <- OBJ@meta.data
   sub_phenotable = phenotable[complete.cases(phenotable[,pheno]),]
   if(is_continuous == "T"){
