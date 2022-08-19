@@ -1,10 +1,12 @@
 Package: RePACT
-Title:Regressing Principle components for the Assembly of Continuous Trajectory
+Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
-Authors@R: person("Chen", "Weng", email = "cxw486@case.edu", role = c("aut", "cre"))
-Description: We developed RePACT (Regressing Principle components for the Assembly of Continuous Trajectory) as a general method to sensitively identify disease relevant gene signatures using single cell data. The key step is to find the best trajectory to rank single cells (e.g. β cells) reflecting the change of disease status. In this study, we used RePACT to study obesity (denoted by a continuous BMI variable) and T2D (denoted by a dichotomous variable T2D). It can be potentially applied to any other interesting phenotype
-Depends: R (>= 3.5.1)
-License: What license is it under?
+Authors@R: 
+    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: What the package does (one paragraph).
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
 Encoding: UTF-8
-LazyData: true
-RoxygenNote: 6.1.1
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.0
