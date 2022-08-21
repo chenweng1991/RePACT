@@ -24,11 +24,13 @@ OBJ <- NormalizeData(OBJ)
 OBJ <- FindVariableFeatures(OBJ, selection.method = "vst", nfeatures = 2000)
 OBJ <- ScaleData(OBJ, features = rownames(pbmc))
 OBJ <- RunPCA(OBJ, features = VariableFeatures(object = OBJ))
+DefaultAssay(OBJ) <- "RNA"
 
 # snATAC
 OBJ <- RunTFIDF(OBJ)
 OBJ <- FindTopFeatures(OBJ, min.cutoff = "q5")
 OBJ <- RunSVD(OBJ)
+DefaultAssay(OBJ) <- "ATAC"
 ```
 The OBJ@meta.data should contain a "Sample" column and a column to compare using RePACT, e.g. diseaseStat (binary, "HT"/"T2D")
 ```
@@ -53,16 +55,18 @@ The OBJ@meta.data should contain a "Sample" column and a column to compare using
 Examples to run RePACT on the downloaded Seurat object.
 ```
 scRNA.OBJ <- readRDS("../Old9.Beta.scRNA.rds")
-repact.scRNA(scRNA.OBJ, PCrange=1:20,pheno="diseaseStat",is_continuous="F",norm_index=T,SlopeCut=0.05,output_name2="T2D_Beta.scRNA.RePACT")
+T2D.scRNA.RePACT <- repact.scRNA(scRNA.OBJ, PCrange=1:20,pheno="diseaseStat",is_continuous="F",norm_index=T,SlopeCut=0.05,output_name2="T2D_Beta.scRNA.RePACT")
+
+p1 <- ggplot(T2D.scRNA.RePACT$RepACT.obj$PCanfpheno %>% .[complete.cases(.),])+aes_string("Sample","pseudo.index",group="Sample",fill=pheno)+geom_violin()+coord_flip()+scale_fill_manual(values=c("blue", "red"))+theme_classic()
+p2 <- Do_heatmap(T2D.scRNA.RePACT$RepACT.2nd.ob$bin.data,df1=T2D.scRNA.RePACT$RepACT.2nd.ob$BINlinear.result.summarized$UP,df2=T2D.scRNA.RePACT$RepACT.2nd.ob$BINlinear.result.summarized$DOWN,rankname="rank",top_gene_num=20)
+grid.arrange(p1,p2,ncol=2)
 ```
-Output files will be written out to the disk, they are intermediate rds files, genes on T2D trajectory, plots.
+
+The function will return a list for plots and downstream analysis, also the output files will be written out to the disk.
 ```
-T2D_Beta.scRNA.RePACT.RePACT.pdf
 T2D_Beta.scRNA.RePACTDOWN_gene.csv
 T2D_Beta.scRNA.RePACT.genes.FCs.csv
 T2D_Beta.scRNA.RePACT.genes.Full_list.csv
-T2D_Beta.scRNA.RePACT.RepactOBJ.1.rds
-T2D_Beta.scRNA.RePACT.RepactOBJ.2.rds
 T2D_Beta.scRNA.RePACTUP_gene.csv
 ```
 <img src="https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/RePACT.violinheat.png" alt="drawing" width="600"/>
@@ -71,6 +75,7 @@ T2D_Beta.scRNA.RePACTUP_gene.csv
 ```
 scRNA.OBJ <- readRDS("../Old9.Beta.scRNA.rds")
 donorWise.T2D.RePACT <- DonorWise.scRNA.RePACT(OBJ=scRNA.OBJ, pheno="diseaseStat")
+# Take output List for key plots
 pdf("T2D.scRNA.RePACT.donorWise.pdf",18,5)
 p1 <- ggplot(donorWise.T2D.RePACT$FishersMethod.q.dn.df)+aes(rank,-log10(qvalueInSample),label=GeneLabel,shape=InSampleTag)+geom_point(color="red")+geom_text_repel(color="red")+geom_hline(yintercept=2,linetype=2)+theme_classic()+scale_shape_manual(values=c(20,2))+ggtitle("DN")
 p2 <- ggplot(donorWise.T2D.RePACT$FishersMethod.q.up.df)+aes(rank,-log10(qvalueInSample),label=GeneLabel,shape=InSampleTag)+geom_point(color="darkgreen")+geom_text_repel(color="darkgreen")+geom_hline(yintercept=2,linetype=2)+theme_classic()+scale_shape_manual(values=c(20,2))+ggtitle("UP")
@@ -89,15 +94,17 @@ dev.off()
 For example, we ran RePACT on beta cell snATAC-seq Seurat obj(donwload here).
 ```
 snATAC.OBJ <- readRDS("../Beta.snATAC.rds")
-repact_logistic.snATAC(snATAC.OBJ, LSIrange=1:20, pheno="diseaseStat", outputname="T2D_Beta.snATAC.RePACT")
+T2D.snATAC.RePACT <- repact_logistic.snATAC(OBJ=scRNA.OBJ, LSIrange=1:20, pheno="diseaseStat", outputname)
+pdf("T2D.snATAC.RePACT.pdf")
+scatter3D(T2D.snATAC.RePACT$LSI.withinfo[,LSI_Top[1]], T2D.snATAC.RePACT$LSI.withinfo[,LSI_Top[2]], T2D.snATAC.RePACT$LSI.withinfo[,LSI_Top[3]],ticktype = "detailed", pch = 20, theta = 90, phi = 30, colvar = ifelse(LSI.withinfo[,pheno]==pheno.2,1,0), bty = "b2", cex = 0.3, col = alpha.col(col = c("steelblue", "red"), 0.6))
+ggplot(T2D.snATAC.RePACT$LSI.withinfo)+aes(pseudo.index.balanced,fill=get(pheno))+geom_density()+scale_fill_manual(values=c("steelblue","red"))+theme_classic()+theme(legend.position="none")
+ggplot(T2D.snATAC.RePACT$LSI.withinfo)+aes(Sample,pseudo.index.balanced,fill=get(pheno))+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("steelblue", "red"))+theme_bw()+theme(legend.position="none")
+# p4 <- ggplot(T2D.snATAC.RePACT$Evenbin.donorContribute)+aes(Sample,value,fill=disease)+geom_bar(stat="identity",color="black")+facet_grid(~evenfragbin)+theme(axis.text=element_blank(),axis.ticks=element_blank())+scale_fill_manual(values=c("steelblue","red"))+theme_bw()
+apply(T2D.snATAC.RePACT$tmpT2D.diffPeaks.20bin.LSI$UPDN.toplot[,c(rownames(T2D.snATAC.RePACT$tmpT2D.diffPeaks.20bin.LSI$UP), rownames(tmpT2D.diffPeaks.20bin.LSI$DN))],2,function(x){scale(x)}) %>% melt() %>% ggplot()+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_classic()+theme(axis.text=element_blank())+ggtitle("LSI-20bins")+xlab("20 trajectory bins") + ylab("ATAC peaks")
+dev.off()
 ```
-Output files will be written out to the disk
-```
-T2D_Beta.snATAC.RePACT.CARePACT.pdf
-T2D_Beta.snATAC.RePACT.CARePACT.T2D_diffPeaks.20bin.LSI.rds
-T2D_Beta.snATAC.RePACT.T2D.diffPeaks.repact.bulk.rds
-```
-![](https://github.com/chenweng1991/RePACT/blob/81317e850892b415a554c97433646b8abfbde9f0/image/RePACT.snATAC.graphic.PNG)
+
+![](https://github.com/chenweng1991/RePACT/blob/master/image/T2D.snATAC.RePACT.PNG)
 
 ## RePACT on snATAC-seq to identify intra-dnor and inter-donor ATAC-peaks
 ```
