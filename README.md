@@ -11,6 +11,7 @@ Please cite: <br />
 
 ## Install
 ```
+library(devtools)
 devtools::install_github("chenweng1991/RePACT") #install RePACT
 library("RePACT")
 ```
