@@ -109,5 +109,9 @@ dev.off()
 ## RePACT on snATAC-seq to identify intra-dnor and inter-donor ATAC-peaks
 ```
 snATAC.OBJ <- readRDS("../Beta.snATAC.rds")
-DonorWise.snATAC.RePACT(OBJ=snATAC.OBJ, pheno, pheno="diseaseStat", outputname="T2D.snATAC.RePACT.donorWise")
+donorWise.T2D.snATAC.RePACT <- DonorWise.snATAC.RePACT(OBJ=snATAC.OBJ, pheno="diseaseStat")
+p1 <- ggplot(donorWise.T2D.snATAC.RePACT$FishersMethod.q.dn.df)+aes(rank,-log10(qvalueInSample),label=tag2,color=tag1)+geom_point()+geom_text_repel()+geom_hline(yintercept=2)+theme_classic()+ggtitle("DN peaks")
+p2 <- ggplot(donorWise.T2D.snATAC.RePACT$FishersMethod.q.up.df)+aes(rank,-log10(qvalueInSample),label=tag2,color=tag1)+geom_point()+geom_text_repel()+geom_hline(yintercept=2)+theme_classic()+ggtitle("UP peaks")
+p1 + p2
+
 ```
