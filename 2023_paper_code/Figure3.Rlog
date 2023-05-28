@@ -1,0 +1,465 @@
+#!/bin/bash
+points_colorByDensity<-function(x1,x2,pch=20,cex=2){
+        df <- data.frame(x1,x2)
+        x <- densCols(x1,x2, colramp=colorRampPalette(c("darkblue","green",colorRampPalette(c("orange","red"))(2))))
+        points(x1,x2,pch=pch,cex=cex,col=x,xlab='',ylab='')
+}
+Merge_loop<-function(loop){
+        write.table(loop,file='temp',sep='\t',row.names=FALSE,col.names=FALSE,quote=FALSE)
+        system("bash merge_loop.sh temp")
+        loop_merge=read.table("temp.merge.origin_loops",stringsAsFactors=FALSE)
+        return(loop_merge)
+}
+Merge_loop_gene<-function(loop,gene_expr){
+        write.table(loop,file='temp',sep='\t',row.names=FALSE,col.names=FALSE,quote=FALSE)
+        system("bash merge_loop.genes.sh temp")
+        loop_merge=as.character(read.table("temp.merge.origin_loops.genes",stringsAsFactors=FALSE)[,1])
+        return(gene_expr[which(rownames(gene_expr) %in% loop_merge),])
+}
+Get_anchors_gene_expr<-function(anchors,anchor_gene,gene_expr){
+	tmp_expr<-gene_expr[which(rownames(gene_expr) %in% anchor_gene$gene_tss[which(anchor_gene$anchor %in% anchors)]),]
+	boxplot(tmp_expr[,c(1,3)],outline=FALSE,names=c("Beta","Alpha"),ylab='RPKM',main=round(-log10(wilcox.test(tmp_expr[,1],tmp_expr[,3])$p.value),digits=2))
+	legend("topright",legend=c(nrow(tmp_expr)))
+	return(tmp_expr)
+}
+bin_anchor=read.table("../compartment/genome_split_250k.bin.5kb_anchor",stringsAsFactors=FALSE,col.names=c("bin","anchor"))
+bin_gene=read.table("hg19.ncbiRefSeq.selected_col.comb.ncbiRefSeq_gene",stringsAsFactors=FALSE,col.names=c("bin","gene"))
+alpha_beta_compt=read.table("../compartment/new_filter.alpha.beta_each.chr.beta.distribution.txt",stringsAsFactors=FALSE,col.names=c("bin","alpha_compt","alpha_PC1","beta_compt","beta_PC1","cor","pvalue","label"))
+bin_gene_expr=read.table("genome_split_250k.Aggregate.beta_alpha_expr",stringsAsFactors=FALSE,col.names=c("bin","gene","beta","alpha"))
+bin_ATAC_peak=read.table("genome_split_250k.RPKM.7CellTypes.LinBased",stringsAsFactors=FALSE,col.names=c("bin","peak"))
+anchor_gene=read.table("../loops/hg19.5kb.anchor.gene.tss",stringsAsFactors=FALSE,col.names=c("anchor","gene_tss"))
+CTCF_M=as.character(read.table("endoC.CTCF_Millipore_peaks.narrowPeak.anchors",stringsAsFactors=FALSE)[,1])
+CTCF_A=as.character(read.table("endoC.CTCF_Abcam_peaks.narrowPeak.anchors",stringsAsFactors=FALSE)[,1])
+CTCF_pancreas=as.character(read.table("Pancreas_CTCF.SRR6213075.narrowPeak.anchors",stringsAsFactors=FALSE)[,1])
+RPKM.7CellTypes.LinBased<-readRDS("/mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/RDS/RPKM.7CellTypes.LinBased")
+Aggregate.7celltype.RNA.rpkm<-readRDS("/mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/RDS/Aggregate.7celltype.RNA.rpkm")
+anchor_gene_expr=read.table("hg19.anchors_5kb.bed.Aggregate.beta_alpha_expr",stringsAsFactors=FALSE,col.names=c("anchor","gene","beta","alpha"))
+BetaSpecAtac<-RPKM.7CellTypes.LinBased[which(RPKM.7CellTypes.LinBased$group %in% c("C2","C3")),]
+AlphaSpecAtac<-RPKM.7CellTypes.LinBased[which(RPKM.7CellTypes.LinBased$group %in% c("C5","C6","C7")),]
+DI_peaks<-read.table("all.DI.sum.ID_ATACPeaks",stringsAsFactors=FALSE,col.names=c("DI_id","peak_id"))
+DI<-read.table("TAD/all.DI.sum",stringsAsFactors=FALSE,header=T)
+DI$id=paste(DI$chr,DI$start,DI$end,sep='_')
+DI$a_b_resid=lm(DI$alpha~DI$beta)$residuals
+pdf("DI.scatter.pdf")
+plot(DI$alpha,DI$beta,pch='.',cex=3,xlim=c(-50,50),ylim=c(-50,50),col='darkblue',xaxt="n",yaxt="n",xlab="",ylab="")
+resid_num=100
+points(DI$alpha[which(DI$a_b_resid>=sort(DI$a_b_resid,decreasing=T)[resid_num])],DI$beta[which(DI$a_b_resid>=sort(DI$a_b_resid,decreasing=T)[resid_num])],pch='.',cex=3,col='red')
+points(DI$alpha[which(DI$a_b_resid<=sort(DI$a_b_resid,decreasing=F)[resid_num])],DI$beta[which(DI$a_b_resid<=sort(DI$a_b_resid,decreasing=F)[resid_num])],pch='.',cex=3,col='blue')
+abline(h=0,lty='dashed')
+abline(v=0,lty='dashed')
+dev.off()
+par(mfrow=c(1,2))
+plot(DI$alpha,DI$beta,pch='.',cex=3,xlim=c(-50,50),ylim=c(-50,50),col='grey')
+points(DI$alpha[which(DI$id %in% DI_peaks$DI_id[which(DI_peaks$peak_id %in% rownames(AlphaSpecAtac))])],
+		   DI$beta[which(DI$id %in% DI_peaks$DI_id[which(DI_peaks$peak_id %in% rownames(AlphaSpecAtac))])],cex=3,pch='.',col='red')
+plot(DI$alpha,DI$beta,pch='.',cex=3,xlim=c(-50,50),ylim=c(-50,50),col='grey')
+points(DI$alpha[which(DI$id %in% DI_peaks$DI_id[which(DI_peaks$peak_id %in% rownames(BetaSpecAtac))])],
+                   DI$beta[which(DI$id %in% DI_peaks$DI_id[which(DI_peaks$peak_id %in% rownames(BetaSpecAtac))])],cex=3,pch='.',col='blue')
+
+write.table(DI[which(DI$a_b_resid>=sort(DI$a_b_resid,decreasing=T)[resid_num]),1:3],file="DI.alpha.100",sep='\t',quote=FALSE,row.names=FALSE,col.names=FALSE)
+write.table(DI[which(DI$a_b_resid<=sort(DI$a_b_resid,decreasing=F)[resid_num]),1:3],file="DI.beta.100",sep='\t',quote=FALSE,row.names=FALSE,col.names=FALSE)
+
+# cat RPKM.7CellTypes.LinBased.peak_ID | sed s/"_"/\\t/g | bedtools intersect -wa -wb -a - -b hg19.anchors_5kb.bed |awk '{print $1"_"$2"_"$3 "\t" $7}' > RPKM.7CellTypes.LinBased.peak_ID.anchors
+AtacPeakID_anchors<-read.table("RPKM.7CellTypes.LinBased.peak_ID.anchors",stringsAsFactors=FALSE,col.names=c("ID","anchor"))
+RPKM.7CellTypes.LinBased$anchor=rep(".",nrow(RPKM.7CellTypes.LinBased))
+for(i in 1:nrow(RPKM.7CellTypes.LinBased)){
+	if(length(which(AtacPeakID_anchors$ID==rownames(RPKM.7CellTypes.LinBased)[i]))>0){
+		RPKM.7CellTypes.LinBased$anchor[i]=paste(AtacPeakID_anchors$anchor[which(AtacPeakID_anchors$ID==rownames(RPKM.7CellTypes.LinBased)[i])],collapse=',')
+	}
+}
+BetaSpecAtac_anchors<-AtacPeakID_anchors$anchor[which(AtacPeakID_anchors$ID %in% rownames(BetaSpecAtac))]
+AlphaSpecAtac_anchors<-AtacPeakID_anchors$anchor[which(AtacPeakID_anchors$ID %in% rownames(AlphaSpecAtac))]
+data=read.table("alpha.beta.top300k",stringsAsFactors=FALSE)
+colnames(data)=c("chr","start","end","A1","A2","alpha_raw","alpha_ratio","alpha_enhance","beta_raw","beta_ratio","beta_enhance","islet_raw","islet_ratio","islet_enhance")
+data_merge=Merge_loop(data)
+# top 300k loop plot highlight two fold specific loops
+plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,35),ylim=c(0,35),xlab="alpha",ylab='beta',main="top 300k loops")
+#,xaxt="n",yaxt="n",xlab="",ylab=""
+points_colorByDensity(data$alpha_enhance,data$beta_enhance,cex=2,pch='.')
+points(data$alpha_enhance[which(data$alpha_enhance>2*data$beta_enhance)],data$beta_enhance[which(data$alpha_enhance>2*data$beta_enhance)],cex=3,pch='.',col='red')
+points(data$alpha_enhance[which(data$beta_enhance>2*data$alpha_enhance)],data$beta_enhance[which(data$beta_enhance>2*data$alpha_enhance)],cex=3,pch='.',col='blue')
+#plot_colorByDensity(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',lim=50)
+AlphaSpecLoops=data[which(data$alpha_enhance>2*data$beta_enhance),]
+BetaSpecLoops=data[which(data$beta_enhance>2*data$alpha_enhance),]
+AlphaSpecLoops_merge=Merge_loop(AlphaSpecLoops)
+BetaSpecLoops_merge=Merge_loop(BetaSpecLoops)
+AlphaSpecLoopAnchors=unique(c(as.character(AlphaSpecLoops$A1),as.character(AlphaSpecLoops$A2)))
+BetaSpecLoopAnchors=unique(c(as.character(BetaSpecLoops$A1),as.character(BetaSpecLoops$A2)))
+boxplot(RPKM.7CellTypes.LinBased[AtacPeakID_anchors$ID[which(AtacPeakID_anchors$anchor %in% AlphaSpecLoopAnchors)],c(1,3)],outline=FALSE)
+boxplot(RPKM.7CellTypes.LinBased[AtacPeakID_anchors$ID[which(AtacPeakID_anchors$anchor %in% BetaSpecLoopAnchors)],c(1,3)],outline=FALSE)
+x<-Get_anchors_gene_expr(AlphaSpecLoopAnchors,anchor_gene,Aggregate.7celltype.RNA.rpkm)
+x<-Get_anchors_gene_expr(BetaSpecLoopAnchors,anchor_gene,Aggregate.7celltype.RNA.rpkm)
+# loop dist distribution
+plot(density((data$end-data$start)),main='top loop distance',ylim=c(0,2e-06))
+lines(density(AlphaSpecLoops_merge[,8]-AlphaSpecLoops_merge[,7]),col='red')
+lines(density(BetaSpecLoops_merge[,8]-BetaSpecLoops_merge[,7]),col='blue')
+data_merge_unique=unique(data_merge[,1:4])
+AlphaSpecLoops_merge_unique=unique(AlphaSpecLoops_merge[,1:4])
+BetaSpecLoops_merge_unique=unique(BetaSpecLoops_merge[,1:4])
+plot(density(data_merge_unique[,3]-data_merge_unique[,2]),main='size of merged-loop-locus',ylim=c(0,1e-06))
+lines(density(AlphaSpecLoops_merge_unique[,3]-AlphaSpecLoops_merge_unique[,2]),col='red')
+lines(density(BetaSpecLoops_merge_unique[,3]-BetaSpecLoops_merge_unique[,2]),col='blue')
+# highlight CTCF anchor on top loops
+highlightAnchorOnPeak<-function(anchors,data){
+	plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,50),ylim=c(0,50),xlab="alpha loop strength",ylab='beta loop strength')
+	points_colorByDensity(data$alpha_enhance[which(data$A1 %in% anchors | data$A2 %in% anchors)],data$beta_enhance[which(data$A1 %in% anchors | data$A2 %in% anchors)],cex=2,pch='.')
+	legend("topright",legend=c(length(which(data$A1 %in% anchors | data$A2 %in% anchors))))
+	plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,50),ylim=c(0,50),xlab="alpha loop strength",ylab='beta loop strength')
+        points_colorByDensity(data$alpha_enhance[which(data$A1 %in% anchors & data$A2 %in% anchors)],data$beta_enhance[which(data$A1 %in% anchors & data$A2 %in% anchors)],cex=2,pch='.')
+        legend("topright",legend=c(length(which(data$A1 %in% anchors & data$A2 %in% anchors))))
+}
+par(mfrow=c(3,2))
+highlightAnchorOnPeak(CTCF_M,data)
+highlightAnchorOnPeak(CTCF_A,data)
+highlightAnchorOnPeak(CTCF_pancreas,data)
+# top 300k loop plot highlight specific peaks
+par(mfrow=c(2,2))
+plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,35),ylim=c(0,35),xlab="alpha loop strength",ylab='beta loop strength')
+points_colorByDensity(data$alpha_enhance[which(data$A1 %in% AlphaSpecAtac_anchors | data$A2 %in% AlphaSpecAtac_anchors)],data$beta_enhance[which(data$A1 %in% AlphaSpecAtac_anchors | data$A2 %in% AlphaSpecAtac_anchors)],cex=3,pch='.')
+legend("topright",legend=c(paste("alpha-spec-ATAC-peaks:",nrow(AlphaSpecAtac))))
+plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,35),ylim=c(0,35),xlab="alpha loop strength",ylab='beta loop strength')
+points_colorByDensity(data$alpha_enhance[which(data$A1 %in% BetaSpecAtac_anchors | data$A2 %in% BetaSpecAtac_anchors)],data$beta_enhance[which(data$A1 %in% BetaSpecAtac_anchors | data$A2 %in% BetaSpecAtac_anchors)],cex=3,pch='.')
+legend("topright",legend=c(paste("beta-spec-ATAC-peaks:",nrow(BetaSpecAtac))))
+# ATAC peaks plot, highlight spec-loops
+plot(RPKM.7CellTypes.LinBased$Alpha,RPKM.7CellTypes.LinBased$Beta,cex=2,pch='.',xlim=c(0,200),ylim=c(0,200),col='grey',xlab='alpha ATAC peak strength',ylab='beta ATAC peak strength')
+points_colorByDensity(RPKM.7CellTypes.LinBased[AtacPeakID_anchors$ID[which(AtacPeakID_anchors$anchor %in% AlphaSpecLoopAnchors)],]$Alpha,RPKM.7CellTypes.LinBased[AtacPeakID_anchors$ID[which(AtacPeakID_anchors$anchor %in% AlphaSpecLoopAnchors)],]$Beta,cex=3,pch='.')
+legend("topright",legend=c(paste("alpha-spec loops:",nrow(AlphaSpecLoops))))
+plot(RPKM.7CellTypes.LinBased$Alpha,RPKM.7CellTypes.LinBased$Beta,cex=2,pch='.',xlim=c(0,200),ylim=c(0,200),col='grey',xlab='alpha ATAC peak strength',ylab='beta ATAC peak strength')
+points_colorByDensity(RPKM.7CellTypes.LinBased[AtacPeakID_anchors$ID[which(AtacPeakID_anchors$anchor %in% BetaSpecLoopAnchors)],]$Alpha,RPKM.7CellTypes.LinBased[AtacPeakID_anchors$ID[which(AtacPeakID_anchors$anchor %in% BetaSpecLoopAnchors)],]$Beta,cex=3,pch='.')
+legend("topright",legend=c(paste("beta-spec loops:",nrow(BetaSpecLoops))))
+# highlight compt on specific loop
+par(mfrow=c(3,6))
+alpha_top_bin<-alpha_beta_compt$bin[which(alpha_beta_compt$alpha_PC1>0 & alpha_beta_compt$beta_PC1<0 & alpha_beta_compt$pvalue<=0.05)]
+beta_top_bin<-alpha_beta_compt$bin[which(alpha_beta_compt$alpha_PC1<0 & alpha_beta_compt$beta_PC1>0 & alpha_beta_compt$pvalue<=0.05)]
+# significant switched bin plot 1
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1')
+points(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% alpha_top_bin)],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% alpha_top_bin)],cex=3,pch='.',col='red')
+points(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% beta_top_bin)],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% beta_top_bin)],cex=3,pch='.',col='blue')
+# highlight specific ATAC on compt plot
+pdf("highlight_SpecPeak_OnCompt.pdf")
+AlphaSpecATAC_bin <- bin_ATAC_peak$bin[which(bin_ATAC_peak$peak %in% rownames(AlphaSpecAtac))]
+BetaSpecATAC_bin <- bin_ATAC_peak$bin[which(bin_ATAC_peak$peak %in% rownames(BetaSpecAtac))]
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1',col='grey')
+points(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% AlphaSpecATAC_bin)],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% AlphaSpecATAC_bin)],cex=5,pch='.',col='red')
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1',col='grey')
+points(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% BetaSpecATAC_bin)],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% BetaSpecATAC_bin)],cex=5,pch='.',col='blue')
+dev.off()
+
+par(mfrow=c(1,2))
+AlphaSpecATAC_bin <- bin_ATAC_peak$bin[which(bin_ATAC_peak$peak %in% rownames(AlphaSpecAtac))]
+BetaSpecATAC_bin <- bin_ATAC_peak$bin[which(bin_ATAC_peak$peak %in% rownames(BetaSpecAtac))]
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1',col='grey')
+points_colorByDensity(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% AlphaSpecATAC_bin)],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% AlphaSpecATAC_bin)],cex=3,pch='.')
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1',col='grey')
+points_colorByDensity(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% BetaSpecATAC_bin)],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% BetaSpecATAC_bin)],cex=3,pch='.')
+
+# ATAC and expr on switched bins 6
+alpha_top_bin_ATAC<-RPKM.7CellTypes.LinBased[bin_ATAC_peak$peak[which(bin_ATAC_peak$bin %in% alpha_top_bin)],c(1,3)]
+beta_top_bin_ATAC<-RPKM.7CellTypes.LinBased[bin_ATAC_peak$peak[which(bin_ATAC_peak$bin %in% beta_top_bin)],c(1,3)]
+alpha_top_bin_expr<-bin_gene_expr[which(bin_gene_expr$bin %in% alpha_top_bin),c(3,4)]
+beta_top_bin_expr<-bin_gene_expr[which(bin_gene_expr$bin %in% beta_top_bin),c(3,4)]
+boxplot(alpha_top_bin_ATAC,outline=FALSE,main=round(-log10(wilcox.test(alpha_top_bin_ATAC[,1],alpha_top_bin_ATAC[,2])$p.value),digits=2))
+boxplot(beta_top_bin_ATAC,outline=FALSE,main=round(-log10(wilcox.test(beta_top_bin_ATAC[,1],beta_top_bin_ATAC[,2])$p.value),digits=2))
+boxplot(alpha_top_bin_expr,outline=FALSE,main=round(-log10(wilcox.test(alpha_top_bin_expr[,1],alpha_top_bin_expr[,2])$p.value),digits=2))
+boxplot(beta_top_bin_expr,outline=FALSE,main=round(-log10(wilcox.test(beta_top_bin_expr[,1],beta_top_bin_expr[,2])$p.value),digits=2))
+alpha_top_bin_anchors<-bin_anchor$anchor[which(bin_anchor$bin %in% alpha_top_bin)]
+beta_top_bin_anchors<-bin_anchor$anchor[which(bin_anchor$bin %in% beta_top_bin)]
+Alpha_compt_AlphaSpecLoops<-Merge_loop(AlphaSpecLoops[which(AlphaSpecLoops$A1 %in% alpha_top_bin_anchors & AlphaSpecLoops$A2 %in% alpha_top_bin_anchors),])
+Beta_compt_BetaSpecLoops<-Merge_loop(BetaSpecLoops[which(BetaSpecLoops$A1 %in% beta_top_bin_anchors & BetaSpecLoops$A2 %in% beta_top_bin_anchors),])
+highlightAnchorOnPeak(alpha_top_bin_anchors,data)
+highlightAnchorOnPeak(beta_top_bin_anchors,data)
+# highlight specific loops on compt 2
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1',col='grey')
+points_colorByDensity(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% bin_anchor$bin[which(bin_anchor$anchor %in% AlphaSpecLoopAnchors)])],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% bin_anchor$bin[which(bin_anchor$anchor %in% AlphaSpecLoopAnchors)])],cex=3,pch='.')
+tmp_bin=alpha_beta_compt[which(alpha_beta_compt$bin %in% bin_anchor$bin[which(bin_anchor$anchor %in% AlphaSpecLoopAnchors)]),]
+legend("topleft",legend=paste(length(which(tmp_bin$bin %in% beta_top_bin)),length(beta_top_bin),sep=' / '))
+legend("topright",legend=paste(length(which(tmp_bin$alpha_PC1>0 & tmp_bin$beta_PC1>0)),length(which(alpha_beta_compt$alpha_PC1>0 & alpha_beta_compt$beta_PC1>0)),sep=' / '))
+legend("bottomleft",legend=paste(length(which(tmp_bin$alpha_PC1<0 & tmp_bin$beta_PC1<0)),length(which(alpha_beta_compt$alpha_PC1<0 & alpha_beta_compt$beta_PC1<0)),sep=' / '))
+legend("bottomright",legend=paste(length(which(tmp_bin$bin %in% alpha_top_bin)),length(alpha_top_bin),sep=' / '))
+plot(alpha_beta_compt$alpha_PC1,alpha_beta_compt$beta_PC1,cex=2,pch='.',xlim=c(-0.1,0.1),ylim=c(-0.1,0.1),xlab='alpha PC1',ylab='beta PC1',col='grey')
+points_colorByDensity(alpha_beta_compt$alpha_PC1[which(alpha_beta_compt$bin %in% bin_anchor$bin[which(bin_anchor$anchor %in% BetaSpecLoopAnchors)])],alpha_beta_compt$beta_PC1[which(alpha_beta_compt$bin %in% bin_anchor$bin[which(bin_anchor$anchor %in% BetaSpecLoopAnchors)])],cex=3,pch='.')
+tmp_bin=alpha_beta_compt[which(alpha_beta_compt$bin %in% bin_anchor$bin[which(bin_anchor$anchor %in% BetaSpecLoopAnchors)]),]
+legend("topleft",legend=paste(length(which(tmp_bin$bin %in% beta_top_bin)),length(beta_top_bin),sep=' / '))
+legend("topright",legend=paste(length(which(tmp_bin$alpha_PC1>0 & tmp_bin$beta_PC1>0)),length(which(alpha_beta_compt$alpha_PC1>0 & alpha_beta_compt$beta_PC1>0)),sep=' / '))
+legend("bottomleft",legend=paste(length(which(tmp_bin$alpha_PC1<0 & tmp_bin$beta_PC1<0)),length(which(alpha_beta_compt$alpha_PC1<0 & alpha_beta_compt$beta_PC1<0)),sep=' / '))
+legend("bottomright",legend=paste(length(which(tmp_bin$bin %in% alpha_top_bin)),length(alpha_top_bin),sep=' / '))
+# switched bin, not specific loops 6
+AlphaSpecLoopAnchors_bin<-bin_anchor$bin[which(bin_anchor$anchor %in% AlphaSpecLoopAnchors)]
+BetaSpecLoopAnchors_bin<-bin_anchor$bin[which(bin_anchor$anchor %in% BetaSpecLoopAnchors)]
+venn(list(alpha_bin=alpha_top_bin,alpha_loop_bin=AlphaSpecLoopAnchors_bin))
+venn(list(beta_bin=beta_top_bin,beta_loop_bin=BetaSpecLoopAnchors_bin))
+alphaBinNotSpecLoop<-setdiff(alpha_top_bin,AlphaSpecLoopAnchors_bin)
+betaBinNotSpecLoop<-setdiff(beta_top_bin,BetaSpecLoopAnchors_bin)
+alphaBinNotSpecLoop_expr<-bin_gene_expr[which(bin_gene_expr$bin %in% alphaBinNotSpecLoop),]
+betaBinNotSpecLoop_expr<-bin_gene_expr[which(bin_gene_expr$bin %in% betaBinNotSpecLoop),]
+alphaBinNotSpecLoop_ATAC<-RPKM.7CellTypes.LinBased[bin_ATAC_peak$peak[which(bin_ATAC_peak$bin %in% alphaBinNotSpecLoop)],c(1,3)]
+betaBinNotSpecLoop_ATAC<-RPKM.7CellTypes.LinBased[bin_ATAC_peak$peak[which(bin_ATAC_peak$bin %in% betaBinNotSpecLoop)],c(1,3)]
+boxplot(list(alpha_bin_beta=alpha_top_bin_ATAC[,1],alpha_bin_alpha=alpha_top_bin_ATAC[,2],alpha_notLoop_beta=alphaBinNotSpecLoop_ATAC[,1],alpha_notLoop_alpha=alphaBinNotSpecLoop_ATAC[,2]),outline=FALSE,las=2)
+boxplot(list(beta_bin_beta=beta_top_bin_ATAC[,1],beta_bin_alpha=beta_top_bin_ATAC[,2],beta_notLoop_beta=betaBinNotSpecLoop_ATAC[,1],beta_notLoop_alpha=betaBinNotSpecLoop_ATAC[,2]),outline=FALSE,las=2)
+boxplot(list(alpha_bin_beta=alpha_top_bin_expr[,1],alpha_bin_alpha=alpha_top_bin_expr[,2], alpha_notLoop_beta=alphaBinNotSpecLoop_expr[,3],alpha_notLoop_alpha=alphaBinNotSpecLoop_expr[,4]),outline=FALSE,las=2)
+boxplot(list(beta_bin_beta=beta_top_bin_expr[,1],beta_bin_alpha=beta_top_bin_expr[,2],beta_notLoop_beta=betaBinNotSpecLoop_expr[,3],beta_notLoop_alpha=betaBinNotSpecLoop_expr[,4]),outline=FALSE,las=2)
+# peak target genes identified from loops
+# annotatePeaks.pl Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed hg19 > Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed.annotated
+loops_withAllPeaks<-data[which(data$A1 %in% AtacPeakID_anchors$anchor | data$A2 %in% AtacPeakID_anchors$anchor),]
+loops_OnlyLeftside_with_AllPeaks<-data[intersect(which(data$A1 %in% AtacPeakID_anchors$anchor),which(!data$A2 %in% AtacPeakID_anchors$anchor)),]
+loops_OnlyRightside_with_AllPeaks<-data[intersect(which(!data$A1 %in% AtacPeakID_anchors$anchor),which(data$A2 %in% AtacPeakID_anchors$anchor)),]
+loops_Bothside_with_AllPeaks<-data[intersect(which(data$A1 %in% AtacPeakID_anchors$anchor),which(data$A2 %in% AtacPeakID_anchors$anchor)),]
+write.table(loops_OnlyLeftside_with_AllPeaks[,c(5,4,5)],file="loops_OnlyLeftside_with_AllPeaks.right_anchors",row.names=FALSE,col.names=FALSE,quote=FALSE,sep='\t')
+write.table(loops_OnlyRightside_with_AllPeaks[,c(4,4,5)],file="loops_OnlyRightside_with_AllPeaks.left_anchors",row.names=FALSE,col.names=FALSE,quote=FALSE,sep='\t')
+# cat loops_OnlyLeftside_with_AllPeaks.right_anchors | awk '{print $1}' | ./pick.loc.of.anchor.pl hg19.anchors_5kb.bed - | awk '{print $1 "\t" $2 "\t" $3 "\t" $4";"$5}' | annotatePeaks.pl - hg19 > loops_OnlyLeftside_with_AllPeaks.right_anchors.annotated
+# cat loops_OnlyLeftside_with_AllPeaks.right_anchors | awk '{print $2}' | ./pick.loc.of.anchor.pl hg19.anchors_5kb.bed - | awk '{print $1 "\t" $2 "\t" $3 "\t" $4";"$5}' | annotatePeaks.pl - hg19 > loops_OnlyLeftside_with_AllPeaks.left_anchors.annotated
+# cat loops_OnlyRightside_with_AllPeaks.left_anchors | awk '{print $1}' | ./pick.loc.of.anchor.pl hg19.anchors_5kb.bed - | awk '{print $1 "\t" $2 "\t" $3 "\t" $4";"$5}' | annotatePeaks.pl - hg19 > loops_OnlyRightside_with_AllPeaks.left_anchors.annotated
+# cat loops_OnlyRightside_with_AllPeaks.left_anchors | awk '{print $3}' | ./pick.loc.of.anchor.pl hg19.anchors_5kb.bed - | awk '{print $1 "\t" $2 "\t" $3 "\t" $4";"$5}' | annotatePeaks.pl - hg19 > loops_OnlyRightside_with_AllPeaks.right_anchors.annotated
+for file in loops_OnlyLeftside_with_AllPeaks.right_anchors.annotated loops_OnlyLeftside_with_AllPeaks.left_anchors.annotated loops_OnlyRightside_with_AllPeaks.left_anchors.annotated loops_OnlyRightside_with_AllPeaks.right_anchors.annotated;do
+	cat $file | awk -F "\t" '{print $16}' | paste -d "\t" ${file/.annotated/} - | grep -v "Gene Name" > $file.genes
+done
+loops_OnlyLeftside_with_AllPeaks.right_anchors.annotated_genes<-read.table("loops_OnlyLeftside_with_AllPeaks.right_anchors.annotated.genes",stringsAsFactors=FALSE,fill=T)
+loops_OnlyLeftside_with_AllPeaks.left_anchors.annotated_genes<-read.table("loops_OnlyLeftside_with_AllPeaks.left_anchors.annotated.genes",stringsAsFactors=FALSE,fill=T)
+loops_OnlyRightside_with_AllPeaks.right_anchors.annotated_genes<-read.table("loops_OnlyRightside_with_AllPeaks.right_anchors.annotated.genes",stringsAsFactors=FALSE,fill=T)
+loops_OnlyRightside_with_AllPeaks.left_anchors.annotated_genes<-read.table("loops_OnlyRightside_with_AllPeaks.left_anchors.annotated.genes",stringsAsFactors=FALSE,fill=T)
+# peak-annotate-geneExpr-loop-loopSideAnnotate-loopSideAnnotateGeneExpr
+#add  expr to table
+loops_OnlyLeftside_with_AllPeaks.comb<-data.frame(loops_OnlyLeftside_with_AllPeaks[,c(4,5,8,11)],loops_OnlyLeftside_with_AllPeaks.left_anchors.annotated_genes[,4],loops_OnlyLeftside_with_AllPeaks.right_anchors.annotated_genes[,4], stringsAsFactors=FALSE)
+colnames(loops_OnlyLeftside_with_AllPeaks.comb)[5:6]=c("A1_peak_genes","A2_loop_genes")
+loops_OnlyLeftside_with_AllPeaks.comb$A1_peak_genes_AlphaExpr=rep(0,nrow(loops_OnlyLeftside_with_AllPeaks.comb))
+loops_OnlyLeftside_with_AllPeaks.comb$A1_peak_genes_BetaExpr=loops_OnlyLeftside_with_AllPeaks.comb$A1_peak_genes_AlphaExpr
+loops_OnlyLeftside_with_AllPeaks.comb$A2_loop_genes_AlphaExpr=rep(0,nrow(loops_OnlyLeftside_with_AllPeaks.comb))
+loops_OnlyLeftside_with_AllPeaks.comb$A2_loop_genes_BetaExpr=loops_OnlyLeftside_with_AllPeaks.comb$A2_loop_genes_AlphaExpr
+for(i in 1:nrow(loops_OnlyLeftside_with_AllPeaks.comb)){
+	ind1=which(rownames(Aggregate.7celltype.RNA.rpkm) %in% loops_OnlyLeftside_with_AllPeaks.comb$A1_peak_genes[i])
+	ind2=which(rownames(Aggregate.7celltype.RNA.rpkm) %in% loops_OnlyLeftside_with_AllPeaks.comb$A2_loop_genes[i])
+	if(length(ind1)>0){
+		loops_OnlyLeftside_with_AllPeaks.comb$A1_peak_genes_AlphaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind1,3]
+		loops_OnlyLeftside_with_AllPeaks.comb$A1_peak_genes_BetaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind1,1]
+	}
+	if(length(ind2)>0){
+		loops_OnlyLeftside_with_AllPeaks.comb$A2_loop_genes_AlphaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind2,3]
+		loops_OnlyLeftside_with_AllPeaks.comb$A2_loop_genes_BetaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind2,1]
+	}
+}
+# add expr to table
+loops_OnlyRightside_with_AllPeaks.comb<-data.frame(loops_OnlyRightside_with_AllPeaks[,c(4,5,8,11)],loops_OnlyRightside_with_AllPeaks.left_anchors.annotated_genes[,4],loops_OnlyRightside_with_AllPeaks.right_anchors.annotated_genes[,4], stringsAsFactors=FALSE)
+colnames(loops_OnlyRightside_with_AllPeaks.comb)[5:6]=c("A1_loop_genes","A2_peak_genes")
+loops_OnlyRightside_with_AllPeaks.comb$A1_loop_genes_AlphaExpr=rep(0,nrow(loops_OnlyRightside_with_AllPeaks.comb))
+loops_OnlyRightside_with_AllPeaks.comb$A1_loop_genes_BetaExpr=loops_OnlyRightside_with_AllPeaks.comb$A1_loop_genes_AlphaExpr
+loops_OnlyRightside_with_AllPeaks.comb$A2_peak_genes_AlphaExpr=rep(0,nrow(loops_OnlyRightside_with_AllPeaks.comb))
+loops_OnlyRightside_with_AllPeaks.comb$A2_peak_genes_BetaExpr=loops_OnlyRightside_with_AllPeaks.comb$A2_peak_genes_AlphaExpr
+for(i in 1:nrow(loops_OnlyRightside_with_AllPeaks.comb)){
+        ind1=which(rownames(Aggregate.7celltype.RNA.rpkm) %in% loops_OnlyRightside_with_AllPeaks.comb$A1_loop_genes[i])
+        ind2=which(rownames(Aggregate.7celltype.RNA.rpkm) %in% loops_OnlyRightside_with_AllPeaks.comb$A2_peak_genes[i])
+        if(length(ind1)>0){
+                loops_OnlyRightside_with_AllPeaks.comb$A1_loop_genes_AlphaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind1,3]
+                loops_OnlyRightside_with_AllPeaks.comb$A1_loop_genes_BetaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind1,1]
+        }
+        if(length(ind2)>0){
+                loops_OnlyRightside_with_AllPeaks.comb$A2_peak_genes_AlphaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind2,3]
+                loops_OnlyRightside_with_AllPeaks.comb$A2_peak_genes_BetaExpr[i]=Aggregate.7celltype.RNA.rpkm[ind2,1]
+        }
+}
+# comb onlyLeft and onlyRight
+loops_OnlyRightside_with_AllPeaks.comb_temp=loops_OnlyRightside_with_AllPeaks.comb[,c(1:4,6,9,10,5,7,8)]
+colnames(loops_OnlyLeftside_with_AllPeaks.comb_temp)[c(1:2,5:10)]=c("peak_anchor","loop_anchor","peak_genes","peak_genes_AlphaExpr","peak_genes_BetaExpr","loop_genes","loop_genes_AlphaExpr","loop_genes_BetaExpr")
+loops_OnlyRightside_with_AllPeaks.comb_temp=loops_OnlyRightside_with_AllPeaks.comb[,c(2,1,3,4,6,9,10,5,7,8)]
+colnames(loops_OnlyRightside_with_AllPeaks.comb_temp)[c(1:2,5:10)]=c("peak_anchor","loop_anchor","peak_genes","peak_genes_AlphaExpr","peak_genes_BetaExpr","loop_genes","loop_genes_AlphaExpr","loop_genes_BetaExpr")
+Comb_peak_loops=rbind(loops_OnlyLeftside_with_AllPeaks.comb_temp,loops_OnlyRightside_with_AllPeaks.comb_temp)
+ind=which(Comb_peak_loops$peak_genes !=Comb_peak_loops$loop_genes)
+diff_targets_Comb_peak_loops=Comb_peak_loops[ind,]
+plot(log2(diff_targets_Comb_peak_loops$peak_genes_BetaExpr/diff_targets_Comb_peak_loops$peak_genes_AlphaExpr),log2(diff_targets_Comb_peak_loops$loop_genes_BetaExpr/diff_targets_Comb_peak_loops$loop_genes_AlphaExpr),pch='.',cex=3,xlab='genes predicted by peak',ylab='genes prediced by loop',main='log2 (beta / alpha)',xlim=c(-6,6),ylim=c(-6,6))
+# select spec-peak items
+diff_targets_Comb_peak_loops_specPeak<-diff_targets_Comb_peak_loops[which(diff_targets_Comb_peak_loops$peak_anchor %in% c(BetaSpecAtac_anchors,AlphaSpecAtac_anchors)),]
+plot(log2(diff_targets_Comb_peak_loops_specPeak$peak_genes_BetaExpr/diff_targets_Comb_peak_loops_specPeak$peak_genes_AlphaExpr),log2(diff_targets_Comb_peak_loops_specPeak$loop_genes_BetaExpr/diff_targets_Comb_peak_loops_specPeak$loop_genes_AlphaExpr),pch='.',cex=3,xlab='genes predicted by peak',ylab='genes prediced by loop',main='log2 (beta / alpha)',xlim=c(-6,6),ylim=c(-6,6))
+# select spec-loop items
+diff_loop_ind=which(diff_targets_Comb_peak_loops$alpha_enhance>2*diff_targets_Comb_peak_loops$beta_enhance | diff_targets_Comb_peak_loops$beta_enhance>2*diff_targets_Comb_peak_loops$alpha_enhance)
+diff_targets_Comb_peak_loops_specLoop<-diff_targets_Comb_peak_loops[diff_loop_ind,]
+plot(log2(diff_targets_Comb_peak_loops_specLoop$peak_genes_BetaExpr/diff_targets_Comb_peak_loops_specLoop$peak_genes_AlphaExpr),log2(diff_targets_Comb_peak_loops_specLoop$loop_genes_BetaExpr/diff_targets_Comb_peak_loops_specLoop$loop_genes_AlphaExpr),pch='.',cex=3,xlab='genes predicted by peak',ylab='genes prediced by loop',main='log2 (beta / alpha)',xlim=c(-6,6),ylim=c(-6,6))
+
+# Specific gene ordered heatmap
+Islet12.scRNA.de<-readRDS("/mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/RDS/Islet12.scRNA.de")
+Beta.sig<-Islet12.scRNA.de$Beta$Alpha[which(Islet12.scRNA.de$Beta$Alpha$p.value<=0.000001 & Islet12.scRNA.de$Beta$Alpha$mean.ratio>=5),]
+Beta.sig<-Beta.sig[order(Beta.sig$mean.ratio,decreasing=T),]
+Alpha.sig<-Islet12.scRNA.de$Beta$Alpha[which(Islet12.scRNA.de$Beta$Alpha$p.value<=0.000001 & Islet12.scRNA.de$Beta$Alpha$mean.ratio<=0.2),]
+Alpha.sig<-Alpha.sig[order(Alpha.sig$mean.ratio,decreasing=F),]
+Alpha.sig.gene_lis<-rownames(Alpha.sig)
+Beta.sig.gene_lis<-rownames(Beta.sig)
+top<-100
+Beta.topGene<-head(Beta.sig,n=top)
+Alpha.topGene<-head(Alpha.sig,n=top)
+gene_lis<-c(rownames(Beta.topGene),rownames(Alpha.topGene))
+#
+refM <- matrix(0,length(unique(refgene[,7])),5)
+tmp <- unique(refgene[,7])
+refM[,5] <- tmp
+for(i in 1:nrow(refM)){
+	tmp_m <- refgene[which(refgene[,7]==tmp[i]),]
+	refM[i,1]<-tmp_m[1,1]
+	refM[i,4]<-tmp_m[1,2]
+	tmp_m_v <- c(as.numeric(as.character(tmp_m[,3])),as.numeric(as.character(tmp_m[,4])),as.numeric(as.character(tmp_m[,5])),as.numeric(as.character(tmp_m[,6])))
+	refM[i,2]<-min(tmp_m_v)
+	refM[i,3]<-max(tmp_m_v)
+}
+# scatter call differential peaks
+redo_peaks<-read.table("alpha_beta.peaks.comb",col.names=c("chr","start","end","alpha","beta"),stringsAsFactors=FALSE)
+plot(redo_peaks$alpha,redo_peaks$beta,pch='.',xlim=c(0,3000),ylim=c(0,3000))
+redo_peaks$resid<-lm(redo_peaks$beta~redo_peaks$alpha)$residuals
+topNum=5000
+tmp_betaSpec <- redo_peaks[which(redo_peaks$resid>=sort(redo_peaks$resid,decreasing=T)[topNum]),]
+tmp_alphaSpec <- redo_peaks[which(redo_peaks$resid<=sort(redo_peaks$resid,decreasing=F)[topNum]),]
+points(tmp_alphaSpec$alpha,tmp_alphaSpec$beta,pch='.',col='red')
+points(tmp_betaSpec$alpha,tmp_betaSpec$beta,pch='.',col='blue')
+peak_gene1<-read.table("alpha_beta.peaks.comb.ncbiRefSeq.selected_col",stringsAsFactors=FALSE,sep='\t',col.names=c("peak_id","gene"))
+peak_gene2<-read.table("alpha_beta.peaks.comb.annotate",stringsAsFactors=FALSE,sep='\t',col.names=c("peak_id","gene"),header=T)
+peak_gene=unique(rbind(peak_gene1,peak_gene2))
+specBetaPeak <- paste(tmp_betaSpec$chr,tmp_betaSpec$start,tmp_betaSpec$end,sep='_')
+specAlphaPeak <- paste(tmp_alphaSpec$chr,tmp_alphaSpec$start,tmp_alphaSpec$end,sep='_')
+redo_peaks_tmp<-redo_peaks[which(redo_peaks$alpha>=100 | redo_peaks$beta>=100),]
+commonPeaks<- setdiff(paste(redo_peaks_tmp$chr,redo_peaks_tmp$start,redo_peaks_tmp$end,sep='_'),c(specBetaPeak,specAlphaPeak))
+peak_anchor<-read.table("alpha_beta.peaks.comb.ATAC_peak.anchors",sep='\t',col.names=c("peak","A"))
+specBetaPeak_A<-peak_anchor$A[which(peak_anchor$peak %in% specBetaPeak)]
+specAlphaPeak_A<-peak_anchor$A[which(peak_anchor$peak %in% specAlphaPeak)]
+par(mfrow=c(2,1))
+plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,40),ylim=c(0,40),xlab="alpha loop strength",ylab='beta loop strength')
+points_colorByDensity(data$alpha_enhance[which(data$A1 %in% specBetaPeak_A | data$A2 %in% specBetaPeak_A)],data$beta_enhance[which(data$A1 %in% specBetaPeak_A | data$A2 %in% specBetaPeak_A)],cex=3,pch='.')
+plot(data$alpha_enhance,data$beta_enhance,cex=2,pch='.',col='grey',xlim=c(0,40),ylim=c(0,40),xlab="alpha loop strength",ylab='beta loop strength')
+points_colorByDensity(data$alpha_enhance[which(data$A1 %in% specAlphaPeak_A | data$A2 %in% specAlphaPeak_A)],data$beta_enhance[which(data$A1 %in% specAlphaPeak_A | data$A2 %in% specAlphaPeak_A)],cex=3,pch='.')
+
+
+# scATAC clustering differential peaks
+peak_gene1<-read.table("ATAC_peak.ncbiRefSeq.selected_col",stringsAsFactors=FALSE,sep='\t',col.names=c("peak_id","gene"))
+peak_gene2<-read.table("ATAC_peak.loc.annotate",stringsAsFactors=FALSE,sep='\t',col.names=c("peak_id","gene"),header=T)
+peak_gene=unique(rbind(peak_gene1,peak_gene2))
+specAlphaPeak<-rownames(AlphaSpecAtac)
+specBetaPeak<-rownames(BetaSpecAtac)
+commonPeaks<-rownames(RPKM.7CellTypes.LinBased)[c(which(grepl("Common",RPKM.7CellTypes.LinBased$group)),which(RPKM.7CellTypes.LinBased$group=="C1"))]
+peak_anchor<-read.table("ATAC_peak.anchors",sep='\t',col.names=c("peak","A"))
+#
+anchor_gene<-read.table("hg19.anchors_5kb.ncbiRefSeq.selected_col",sep='\t',col.names=c("gene","A"))
+AlphaLoop<-data[which(data$alpha_enhance>=sort(data$alpha_enhance,decreasing=T)[300000]),]
+BetaLoop<-data[which(data$beta_enhance>=sort(data$beta_enhance,decreasing=T)[300000]),]
+commonLoop<-AlphaLoop[which(paste(AlphaLoop$A1,AlphaLoop$A2,sep=',') %in% paste(BetaLoop$A1,BetaLoop$A2,sep=',')),]
+specAlphaLoop<-AlphaSpecLoops
+specBetaLoop<-BetaSpecLoops
+
+Get_geneInfo<-function(gene_lis=gene_lis,peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene){
+	M<-matrix(0,length(gene_lis),10)
+	rownames(M)<-gene_lis
+	colnames(M)<-c("local_betaSpecPeaks","commonLoopOut_betaSpecPeaks","betaSpecLoopOut_betaSpecPeaks","betaSpecLoopOut_commonPeaks","beta_swichedA",
+		       "local_alphaSpecPeaks","commonLoopOut_alphaSpecPeaks","alphaSpecLoopOut_alphaSpecPeaks","alphaSpecLoopOut_commonPeaks","alpha_switchedA")
+	M[which(rownames(M) %in% peak_gene$gene[which(peak_gene$peak_id %in% specBetaPeak)]),"local_betaSpecPeaks"]=1
+	M[which(rownames(M) %in% peak_gene$gene[which(peak_gene$peak_id %in% specAlphaPeak)]),"local_alphaSpecPeaks"]=1
+	beta_swichedA_gene<-bin_gene$gene[which(bin_gene$bin %in% beta_top_bin)]
+	alpha_switchedA_gene<-bin_gene$gene[which(bin_gene$bin %in% alpha_top_bin)]
+	M[which(rownames(M) %in% beta_swichedA_gene),"beta_swichedA"]=1
+	M[which(rownames(M) %in% alpha_switchedA_gene),"alpha_switchedA"]=1
+	gene_lis_A<-anchor_gene$A[which(anchor_gene$gene %in% gene_lis)]
+	specAlphaPeak_A<-peak_anchor$A[which(peak_anchor$peak %in% specAlphaPeak)]
+        specBetaPeak_A<-peak_anchor$A[which(peak_anchor$peak %in% specBetaPeak)]
+	commonPeak_A<-peak_anchor$A[which(peak_anchor$peak %in% commonPeaks)]
+	commonLoop_alphaSpecPeaks_left <- commonLoop[which(commonLoop$A1 %in% gene_lis_A & commonLoop$A2 %in% specAlphaPeak_A),]
+	commonLoop_alphaSpecPeaks_right <- commonLoop[which(commonLoop$A1 %in% specAlphaPeak_A & commonLoop$A2 %in% gene_lis_A),]
+	M[which(rownames(M) %in% anchor_gene$gene[which(anchor_gene$A %in% c(commonLoop_alphaSpecPeaks_left$A1,commonLoop_alphaSpecPeaks_right$A2))]),"commonLoopOut_alphaSpecPeaks"]=1
+	commonLoop_betaSpecPeaks_left <- commonLoop[which(commonLoop$A1 %in% gene_lis_A & commonLoop$A2 %in% specBetaPeak_A),]
+        commonLoop_betaSpecPeaks_right <- commonLoop[which(commonLoop$A1 %in% specBetaPeak_A & commonLoop$A2 %in% gene_lis_A),]
+        M[which(rownames(M) %in% anchor_gene$gene[which(anchor_gene$A %in% c(commonLoop_betaSpecPeaks_left$A1,commonLoop_betaSpecPeaks_right$A2))]),"commonLoopOut_betaSpecPeaks"]=1
+	alphaSpecLoop_alphaSpecPeaks_left <- specAlphaLoop[which(specAlphaLoop$A1 %in% gene_lis_A & specAlphaLoop$A2 %in% specAlphaPeak_A),]
+        alphaSpecLoop_alphaSpecPeaks_right <- specAlphaLoop[which(specAlphaLoop$A1 %in% specAlphaPeak_A & specAlphaLoop$A2 %in% gene_lis_A),]
+        M[which(rownames(M) %in% anchor_gene$gene[which(anchor_gene$A %in% c(alphaSpecLoop_alphaSpecPeaks_left$A1,alphaSpecLoop_alphaSpecPeaks_right$A2))]),"alphaSpecLoopOut_alphaSpecPeaks"]=1
+        betaSpecLoop_betaSpecPeaks_left <- specBetaLoop[which(specBetaLoop$A1 %in% gene_lis_A & specBetaLoop$A2 %in% specBetaPeak_A),]
+        betaSpecLoop_betaSpecPeaks_right <- specBetaLoop[which(specBetaLoop$A1 %in% specBetaPeak_A & specBetaLoop$A2 %in% gene_lis_A),]
+        M[which(rownames(M) %in% anchor_gene$gene[which(anchor_gene$A %in% c(betaSpecLoop_betaSpecPeaks_left$A1,betaSpecLoop_betaSpecPeaks_right$A2))]),"betaSpecLoopOut_betaSpecPeaks"]=1
+	alphaSpecLoop_commonPeak_left <- specAlphaLoop[which(specAlphaLoop$A1 %in% gene_lis_A & specAlphaLoop$A2 %in% commonPeak_A),]
+	alphaSpecLoop_commonPeak_right <- specAlphaLoop[which(specAlphaLoop$A1 %in% commonPeak_A & specAlphaLoop$A2 %in% gene_lis_A),]
+	M[which(rownames(M) %in% anchor_gene$gene[which(anchor_gene$A %in% c(alphaSpecLoop_commonPeak_left$A1,alphaSpecLoop_commonPeak_right$A2))]),"alphaSpecLoopOut_commonPeaks"]=1
+	betaSpecLoop_commonPeak_left <- specBetaLoop[which(specBetaLoop$A1 %in% gene_lis_A & specBetaLoop$A2 %in% commonPeak_A),]
+	betaSpecLoop_commonPeak_right <- specBetaLoop[which(specBetaLoop$A1 %in% commonPeak_A & specBetaLoop$A2 %in% gene_lis_A),]
+	M[which(rownames(M) %in% anchor_gene$gene[which(anchor_gene$A %in% c(betaSpecLoop_commonPeak_left$A1,betaSpecLoop_commonPeak_right$A2))]),"betaSpecLoopOut_commonPeaks"]=1
+	colnames(M)<-c("BetaSpecPeaks","CommonLoop-BetaSpecPeaks","BetaSpecLoop-BetaSpecPeaks","BetaSpecLoop-CommonPeaks","Beta.SwitchedA",
+		       "AlphaSpecPeaks","CommonLoop-AlphaSpecPeaks","AlphaSpecLoop-AlphaSpecPeaks","AlphaSpecLoop-CommonPeaks","Alpha.SwitchedA")
+	return(M)
+}
+
+pdf("test.corrplot.pdf",3,20)
+corrplot(M,tl.cex=0.5,tl.col='black',cl.pos='n',method='color',addgrid.col ='black')
+dev.off()
+# top 50 specific genes
+gene_lis<-c(Beta.sig.gene_lis,Alpha.sig.gene_lis)
+Beta.sig.M<-Get_geneInfo(gene_lis=Beta.sig.gene_lis[1:50],peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene)
+Beta.sig.M<-Beta.sig.M[order(rowSums(Beta.sig.M[,1:4]),decreasing=T),]
+Beta.sig.M<-customize_sort(Beta.sig.M)
+for(i in c(5:8)){Beta.sig.M[which(Beta.sig.M[,i]==1),i]=-1}
+Alpha.sig.M<-Get_geneInfo(gene_lis=Alpha.sig.gene_lis[1:50],peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene)
+Alpha.sig.M<-Alpha.sig.M[,c(5:8,1:4)]
+Alpha.sig.M<-Alpha.sig.M[order(rowSums(Alpha.sig.M[,1:4]),decreasing=F),]
+Alpha.sig.M<-customize_sort(Alpha.sig.M)
+for(i in c(1:4)){Alpha.sig.M[which(Alpha.sig.M[,i]==1),i]=-1}
+Alpha.sig.M<-Alpha.sig.M[,c(5:8,1:4)]
+pdf("test.corrplot.pdf",3,20)
+x<-rbind(Beta.sig.M,Alpha.sig.M)
+corrplot(x[,c(1:4,8,7,6,5)],tl.cex=0.8,tl.col='black',cl.pos='n',method='color',addgrid.col ='black')
+dev.off()
+# ALL specific genes
+Beta.sig.M<-Get_geneInfo(gene_lis=Beta.sig.gene_lis,peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene)
+Beta.sig.M<-Beta.sig.M[order(rowSums(Beta.sig.M[,1:5]),decreasing=T),]
+Beta.sig.M<-customize_sort(Beta.sig.M)
+for(i in c(6:10)){Beta.sig.M[which(Beta.sig.M[,i]==1),i]=-1}
+Alpha.sig.M<-Get_geneInfo(gene_lis=Alpha.sig.gene_lis,peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene)
+Alpha.sig.M<-Alpha.sig.M[,c(6:10,1:5)]
+Alpha.sig.M<-Alpha.sig.M[order(rowSums(Alpha.sig.M[,1:5]),decreasing=F),]
+Alpha.sig.M<-customize_sort(Alpha.sig.M)
+for(i in c(1:5)){Alpha.sig.M[which(Alpha.sig.M[,i]==1),i]=-1}
+Alpha.sig.M<-Alpha.sig.M[,c(6:10,1:5)]
+x<-rbind(Beta.sig.M,Alpha.sig.M[nrow(Alpha.sig.M):1,])
+x<-x[,c(1:5,10:6)]
+pdf("test.corrplot.all.pdf",60,5)
+image(x,col=c("red4","white","darkblue"),breaks=c(-1.5,-0.5,0.5,1.5))
+dev.off()
+pdf("test.corrplot.all.corrplot.pdf",5,60)
+corrplot(x,tl.cex=0.8,tl.col='black',cl.pos='n',method='color',addgrid.col ='black')
+dev.off()
+# plot ALL, separate
+Beta.sig.M<-Get_geneInfo(gene_lis=Beta.sig.gene_lis,peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene)
+Beta.sig.M<-customize_sort2(Beta.sig.M)
+Beta.sig.M<-Beta.sig.M[,c(1:5)]
+Alpha.sig.M<-Get_geneInfo(gene_lis=Alpha.sig.gene_lis,peak_gene=peak_gene,anchor_gene=anchor_gene,peak_anchor=peak_anchor,AlphaLoop=AlphaLoop,BetaLoop=BetaLoop,specAlphaLoop=specAlphaLoop,specBetaLoop=specBetaLoop,specAlphaPeak=specAlphaPeak,specBetaPeak=specBetaPeak,commonLoop=commonLoop,commonPeaks=commonPeaks,alpha_top_bin=alpha_top_bin,beta_top_bin=beta_top_bin,bin_gene=bin_gene)
+Alpha.sig.M<-Alpha.sig.M[,c(6:10)]
+Alpha.sig.M<-customize_sort2(Alpha.sig.M)
+#pdf("test.corrplot.all.separate.pdf",20,6)
+par(mfrow=c(2,1))
+image(Beta.sig.M,col=c("white","darkblue"),breaks=c(-0.5,0.5,1.5))
+image(Alpha.sig.M,col=c("white","red4"),breaks=c(-0.5,0.5,1.5))
+#dev.off()
+
+library(scales)
+pdf("test.corrplot.all.piechart.pdf")
+cc<-c(length(which(rowSums(Beta.sig.M[,2:4])>0)),length(which(rowSums(Beta.sig.M[,2:4])==0 & Beta.sig.M[,1]==1)),length(which(rowSums(Beta.sig.M[,1:4])==0)))
+pie(cc,paste(c('loop-support','ATAC only','None'),label_percent()(cc/sum(cc)),sep=':'),col=c('orange','darkblue','grey'))
+cc<-c(length(which(rowSums(Alpha.sig.M[,6:8])<0)),length(which(rowSums(Alpha.sig.M[,6:8])==0 & Alpha.sig.M[,5]==-1)),length(which(rowSums(Alpha.sig.M[,5:8])==0)))
+pie(cc,paste(c('loop-support','ATAC only','None'),label_percent()(cc/sum(cc)),sep=':'),col=c('orange','darkblue','grey'))
+dev.off()
+
+RNA_meanRatio<-as.matrix(Islet12.scRNA.de$Beta$Alpha[rownames(x),6])
+image(RNA_meanRatio
+pdf("test.corrplot.all.pdf",8,60)
+par(mfrow=c(1,2))
+corrplot(Beta.sig.M,tl.cex=0.5,tl.col='black',cl.pos='n',method='color',addgrid.col ='black')
+corrplot(Alpha.sig.M,tl.cex=0.5,tl.col='black',cl.pos='n',method='color',addgrid.col ='black')
+dev.off()
+x<-rbind(Beta.sig.M,Alpha.sig.M)
+image(x[,c(1:4,8,7,6,5)],breaks=c(-1.5,-0.5,0.5,1.5),col=c("red","white","blue"))
+
+customize_sort<-function(M,col_v=c(1:5)){
+	ind_v<-c(combn(c(1:5),1,simplify=FALSE),combn(c(1:5),2,simplify=FALSE),combn(c(1:5),3,simplify=FALSE),combn(c(1:5),4,simplify=FALSE),combn(c(1:5),5,simplify=FALSE))
+	for(i in 1:length(ind_v)){M<-M[order(rowSums(as.matrix(M[,ind_v[[i]]])),decreasing=T),]}
+	M<-M[order(M[,1],decreasing=T),]
+	return(M)
+}
+customize_sort2<-function(M,col_v=c(1:5)){
+	ind_v<-c(combn(c(1:5),1,simplify=FALSE))
+	for(i in 1:length(ind_v)){M<-M[order(rowSums(as.matrix(M[,ind_v[[i]]])),decreasing=T),]}
+	M<-M[order(M[,1],decreasing=T),]
+	return(M)
+}
+#	M<-M[order(rowSums(M[,col_v]),
+#		   rowSums(M[,c(3,4)]),rowSums(M[,c(2,4)]),rowSums(M[,c(2,3)]),rowSums(M[,c(1,4)]),rowSums(M[,c(1,3)]),rowSums(M[,c(1,2)]),
+#		   rowSums(M[,c(2,3,4)]),rowSums(M[,c(1,3,4)]),rowSums(M[,c(1,2,4)]),rowSums(M[,c(1,2,3)]),
+#		   rowSums(M[,c(2,3,4,5)]),rowSums(M[,c(1,3,4,5)]),rowSums(M[,c(1,2,4,5)]),rowSums(M[,c(1,2,3,5)]),rowSums(M[,c(1,2,3,4)]),
+#decreasing=T

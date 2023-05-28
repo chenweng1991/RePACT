@@ -1,0 +1,669 @@
+##region Step 8 RNA diff gene analysis
+  BetaPCA$rank<-rank(BetaPCA$pseudo.index.balanced)
+  ##region  Test Bin numbers I will use /20 bin to keep consitent with before
+    beta.RNA.PCA.20bin.ob<-MakeEvenBinBydepth(cellvsPeak.m=t(as.matrix(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)),data.info=BetaPCA[,51:ncol(BetaPCA)],binnumber=20)
+    betaT2D.diffGene.20bin.PCA<-CallT2Dpeak_qvalue(beta.RNA.PCA.20bin.ob$cellvsPeak.m.aggr,beta.RNA.PCA.20bin.ob$depths,beta.RNA.PCA.20bin.ob$index,qcut=0.2,slopecut1=0.3,slopecut2=-0.3,doscale=T)
+  library(VennDiagram)
+  bin20.g.up<-row.names(subset(betaT2D.diffGene.20bin.PCA$UP,qvalue<0.005))
+  bin20.g.dn<-row.names(subset(betaT2D.diffGene.20bin.PCA$DN,qvalue<0.005))
+venn.diagram(x=list(newup=bin20.g.up,newdn=bin20.g.dn,oldup=row.names(subset(Beta.T2D.trj.genes,feature=="UP")),olddn=row.names(subset(Beta.T2D.trj.genes,feature=="DOWN"))),filename="Beta.T2D.RNAtraj.NewVSold.toptop.tiff",category.names=c("up","dn","up.old","dn.old"),cat.col=c("skyblue","gold","red","green"),fill=c("skyblue","gold","red","green"),cex=4)
+  # saveRDS(betaT2D.diffGene.20bin.PCA,"mydir/betT2D.diffGenes.20binNew")
+betT2D.diffGenes.20binNew<-readRDS("mydir/betT2D.diffGenes.20binNew")
+#Donor contribution plot 10/20/30/40 bins
+ Evenbin.donorContribute<-beta.RNA.PCA.40bin.ob$data.info.withbin %>% .[,c("DonorName","evenfragbin")] %>% table %>% as.matrix %>% apply(.,1,function(x){x/sum(x)}) %>% melt
+ Evenbin.donorContribute<-cbind(Evenbin.donorContribute,disease=ifelse(grepl("T2D",Evenbin.donorContribute$DonorName),"T2D","ND"))
+ ggplot(Evenbin.donorContribute)+aes(DonorName,value,fill=disease)+geom_bar(stat="identity",color="black")+facet_grid(~evenfragbin)+theme(axis.text=element_blank(),axis.ticks=element_blank())+scale_fill_manual(values=c("steelblue","red"))+theme_bw()
+  ##endregion  Test Bin numbers /40 is probably the best, I will take overlap between 20/30/40/
+  ## Plot T2D significant genes
+  betT2D.diffGenes.20binNew<-readRDS("mydir/betT2D.diffGenes.20binNew")
+  Beta.T2Dgenes<-c(bin20.g.up,bin20.g.dn)
+  betT2D.toplot<-betT2D.diffGenes[[2]]$UPDN.toplot
+  betT2D.toplot.m<-apply(betT2D.toplot,2,function(x){(x-mean(x))/sd(x)}) %>% melt()
+  pdf("RNA.RePACT.pdf")
+  ggplot(betT2D.toplot.m)+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient(low="white",high="orange2",limit=c(-1,2),oob=scales::squish)+theme_void()
+  dev.off()
+##endregion
+
+##region Incorporate beta HiC with beta
+'
+ less /mnt/rstor/genetics/JinLab/ssz20/zshanshan/human_islet/alpha_beta_1004/beta.top300k_loops.loc | awk '{split($1,a,":|-"); print a[1],a[2],a[3],$2}' OFS="\t" >beta.top300k_loops.bed
+ less /mnt/rstor/genetics/JinLab/ssz20/zshanshan/human_islet/alpha_beta_1004/beta.top300k_loops.loc | awk '{split($2,a,":|-"); print a[1],a[2],a[3],$1}' OFS="\t" >>beta.top300k_loops.bed
+ bedtools intersect -a Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed -b beta.top300k_loops.bed -wa -wb | cut -f1,2,3,4,8 > Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.top300k.bed
+ awk '{split($5,a,":|-"); print a[1],a[2],a[3],$5}' OFS="\t" Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.top300k.bed | sort -k1,1 -k2,2n -u >TargetLoop.bed
+ annotatePeaks.pl  TargetLoop.bed hg19> TargetLoop.bed.annotated
+ '
+##endregion
+
+##region DiffPeaks VS diffGenes
+  "
+  annotatePeaks.pl  Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed hg19 > Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed.annotated
+  "
+  setwd("/mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/IsletscATAC/Islet12.F.track")
+  # betaT2D.diffpeak.40bin.LSI<-readRDS("mydir/betaT2D.diffpeak.40bin.LSI.rds")
+  betT2D.diffGenes.20binNew<-readRDS("mydir/betT2D.diffGenes.20binNew")
+  bin20.g.up<-row.names(subset(betT2D.diffGenes.20binNew$UP,qvalue<0.005 & MaxRPKM>quantile(betT2D.diffGenes.20binNew$pseudoregress.all$MaxRPKM,0.25)))
+  bin20.g.dn<-row.names(subset(betT2D.diffGenes.20binNew$DN,qvalue<0.005 & MaxRPKM>quantile(betT2D.diffGenes.20binNew$pseudoregress.all$MaxRPKM,0.25)))
+  betaT2D.diffPeaks.20bin.LSI<-readRDS("mydir/betaT2D.diffpeak.20bin.LSI.rds")
+  Beta.Peakannotation<-read.delim("Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed.annotated")
+  row.names(Beta.Peakannotation)<-paste(Beta.Peakannotation[,"Chr"],(Beta.Peakannotation[,"Start"]-1),Beta.Peakannotation[,"End"],sep="_")
+  Beta.Peakannotation<-Beta.Peakannotation[,c("Annotation","Distance.to.TSS","Gene.Name")]
+  Beta.Peakannotation$Annotation<-strsplit(as.character(Beta.Peakannotation$Annotation)," (",fix=T) %>% sapply(.,function(x){x[[1]]})
+  Beta.Peakannotation$Peak<-row.names(Beta.Peakannotation)
+    ##region Add Hi-C loop infos,   Create Beta.Peakannotation.HiC; generate 6 gene list for overlap analysis
+      TargetLoop.bed.annotated<-read.delim("TargetLoop.bed.annotated")[,c("PeakID..cmd.annotatePeaks.pl.TargetLoop.bed.hg19.","Annotation","Distance.to.TSS","Gene.Name")]
+      names(TargetLoop.bed.annotated)[1]<-"V5"
+      Beta.Peak.Targets<-read.table("Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.top300k.bed")[,c(4,5)]
+      Beta.Peakannotation.HiC<-merge(Beta.Peakannotation,Beta.Peak.Targets,by.x="Peak",by.y="V4",all.x=T) %>% merge(.,TargetLoop.bed.annotated,by="V5",all.x=T)
+      names(Beta.Peakannotation.HiC)<-c("Target","Peak","Annotate.near","Dis.to.Tss.near","Gene.near","Annotate.loop","Dis.to.Tss.loop","Gene.loop")
+      Beta.Peakannotation.HiC<-Beta.Peakannotation.HiC[,c("Peak","Annotate.near","Dis.to.Tss.near","Gene.near","Target","Annotate.loop","Dis.to.Tss.loop","Gene.loop")] %>% .[order(.$Peak),]
+      Beta.Peakannotation.HiC<-Beta.Peakannotation.HiC[!duplicated(Beta.Peakannotation.HiC),]
+      # saveRDS(Beta.Peakannotation.HiC,"mydir/Beta.Peakannotation.HiC")
+      Beta.Peakannotation.HiC<-readRDS("mydir/Beta.Peakannotation.HiC")
+      Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$UP),] %>% subset(.,Annotation %in% c("5' UTR","promoter-TSS")| (Distance.to.TSS<=1000 & Distance.to.TSS>=0)) %>% .$Gene.Name %>% unique -> Beta.up.peak.g
+      Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$DN),] %>% subset(.,Annotation %in% c("5' UTR","promoter-TSS")|(Distance.to.TSS<=1000 & Distance.to.TSS>=0)) %>% .$Gene.Name %>% unique -> Beta.dn.peak.g
+
+      Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$UP),] %>% subset(.,!(Annotation %in% c("5' UTR","promoter-TSS")| (Distance.to.TSS<=1000 & Distance.to.TSS>=0))) %>% .$Gene.Name %>% unique -> Beta.up.peak.g.nonP
+      Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$DN),] %>% subset(.,!(Annotation %in% c("5' UTR","promoter-TSS")|(Distance.to.TSS<=1000 & Distance.to.TSS>=0))) %>% .$Gene.Name %>% unique -> Beta.dn.peak.g.nonP
+
+      subset(Beta.Peakannotation.HiC,Peak %in% row.names(betaT2D.diffPeaks.20bin.LSI$UP) & abs(Dis.to.Tss.loop) <=10000)  %>% .$Gene.loop %>% unique ->Beta.up.peak.g.loop
+      subset(Beta.Peakannotation.HiC,Peak %in% row.names(betaT2D.diffPeaks.20bin.LSI$DN) & abs(Dis.to.Tss.loop) <=10000)  %>% .$Gene.loop %>% unique ->Beta.dn.peak.g.loop
+    ##endregion Add Hi-C loop infos
+
+    ##region Summarize the number of regulatory peaks for each T2D trajectory genes
+Beta.Peakannotation.HiC.UP<-subset(Beta.Peakannotation.HiC,Peak %in% row.names(betaT2D.diffPeaks.20bin.LSI$UP))
+UP.PeakN.summary<-data.frame()
+for(gene in Beta.up.GENE){
+P.promoter<-subset(Beta.Peakannotation.HiC.UP,Gene.near==gene) %>% subset(.,Annotate.near %in% c("5' UTR","promoter-TSS")| (Dis.to.Tss.near<=1000 & Dis.to.Tss.near>=0)) %>% .$Peak %>% unique
+P.near<-subset(Beta.Peakannotation.HiC.UP,Gene.near==gene) %>% subset(.,!(Annotate.near %in% c("5' UTR","promoter-TSS")| (Dis.to.Tss.near<=1000 & Dis.to.Tss.near>=0))) %>% .$Peak %>% unique
+P.loop<-subset(Beta.Peakannotation.HiC.UP,abs(Dis.to.Tss.loop)<10000 &Gene.loop==gene) %>% .$Peak %>% unique %>% .[!.%in% union(P.promoter,P.near)]
+cts<-c(length(P.promoter),length(P.near),length(P.loop),sum(length(P.promoter),length(P.near),length(P.loop)))
+UP.PeakN.summary<-rbind(UP.PeakN.summary,cts)
+}
+row.names(UP.PeakN.summary)<-Beta.up.GENE
+colnames(UP.PeakN.summary)<-c("p.promoter","p.near","p.loop","sum")
+
+Beta.Peakannotation.HiC.DN<-subset(Beta.Peakannotation.HiC,Peak %in% row.names(betaT2D.diffPeaks.20bin.LSI$DN))
+DN.PeakN.summary<-data.frame()
+for(gene in Beta.dn.GENE){
+P.promoter<-subset(Beta.Peakannotation.HiC.DN,Gene.near==gene) %>% subset(.,Annotate.near %in% c("5' UTR","promoter-TSS")| (Dis.to.Tss.near<=1000 & Dis.to.Tss.near>=0)) %>% .$Peak %>% unique
+P.near<-subset(Beta.Peakannotation.HiC.DN,Gene.near==gene) %>% subset(.,!(Annotate.near %in% c("5' UTR","promoter-TSS")| (Dis.to.Tss.near<=1000 & Dis.to.Tss.near>=0))) %>% .$Peak %>% unique
+P.loop<-subset(Beta.Peakannotation.HiC.DN,abs(Dis.to.Tss.loop)<10000 &Gene.loop==gene) %>% .$Peak %>% unique %>% .[!.%in% union(P.promoter,P.near)]
+cts<-c(length(P.promoter),length(P.near),length(P.loop),sum(length(P.promoter),length(P.near),length(P.loop)))
+DN.PeakN.summary<-rbind(DN.PeakN.summary,cts)
+}
+row.names(DN.PeakN.summary)<-Beta.dn.GENE
+colnames(DN.PeakN.summary)<-c("p.promoter","p.near","p.loop","sum")
+
+pdf("UP.DNregulatoryPeaks.pdf",height=3,width=4)
+rbind(UP.PeakN.summary,DN.PeakN.summary) %>% ggplot(.)+aes(sum)+aes(sum)+geom_histogram(color="black",binwidth=1,fill="grey")+ylim(0,160)+theme_bw()
+rbind(UP.PeakN.summary,DN.PeakN.summary) %>% ggplot(.)+aes(sum)+aes(sum)+geom_histogram(color="black",binwidth=1,fill="grey")+theme_bw()
+dev.off()
+    ##endregion Summarize the number of regulatory peaks for each T2D trajectory genes
+
+    ##region  Peak annotation summary (To be continured)
+  Peak.summary<-data.frame(table(Beta.Peakannotation$Annotation))
+  Peak.summary$Up<-as.data.frame(table(Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$UP),]$Annotation))$Freq
+  Peak.summary$Dn<-as.data.frame(table(Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$DN),]$Annotation))$Freq
+  Peak.summary[,2:4] %>% apply(.,2,function(x){x/sum(x)}) %>% data.frame(Peak.summary$Var1,.) %>% melt
+  ##endregion  Peak annotation summary (To be continured)
+
+    ##region Venn diagram analysis and fisher's exact test
+    library(VennDiagram)
+  Islet12.Beta.scRNA.seurat3<-readRDS("mydir/Islet12.Beta.scRNA.seurat3")
+  Beta.up.peak.g<-Beta.up.peak.g[Beta.up.peak.g %in% rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)]
+  Beta.dn.peak.g<-Beta.dn.peak.g[Beta.dn.peak.g %in% rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)]
+  Beta.up.peak.g.nonP<-Beta.up.peak.g.nonP[Beta.up.peak.g.nonP %in% rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)]
+  Beta.dn.peak.g.nonP<-Beta.dn.peak.g.nonP[Beta.dn.peak.g.nonP %in% rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)]
+  Beta.up.GENE<-bin20.g.up
+  Beta.dn.GENE<-bin20.g.dn
+  venn.diagram(x=list(Beta.up.peak.g=Beta.up.peak.g,Beta.dn.peak.g=Beta.dn.peak.g,Beta.up.GENE=Beta.up.GENE,Beta.dn.GENE=Beta.dn.GENE),filename="PeakVGene.RPKMcut.tiff",category.names=c("up.pG","dn.pG","up.GENE","dn.GENE"),cat.col=c("skyblue","gold","red","green"),fill=c("skyblue","gold","red","green"),cex=4)
+
+  venn.diagram(x=list(Beta.up.peak.g.loop=Beta.up.peak.g.loop,Beta.dn.peak.g.loop=Beta.dn.peak.g.loop,Beta.up.GENE=Beta.up.GENE,Beta.dn.GENE=Beta.dn.GENE),filename="PeakLoopVGene.RPKMcut.tiff",category.names=c("up.pLG","dn.pLG","up.GENE","dn.GENE"),cat.col=c("skyblue","gold","red","green"),fill=c("skyblue","gold","red","green"),cex=4)
+  ## Below are the 4 small venndiageam in the figure 4
+  venn.diagram(x=list(Beta.up.peak.g.loop=intersect(Beta.up.GENE,Beta.up.peak.g.loop),Beta.up.peak.g=intersect(Beta.up.GENE,Beta.up.peak.g),Beta.up.peak.g.nonP=intersect(Beta.up.GENE,Beta.up.peak.g.nonP)),filename="upgene.UPgenedist.loop.tiff",category.names=c("up.pLG","up.p.promoter","up.p.nonP"),cat.col=c("skyblue","gold","red"),fill=c("skyblue","gold","red"),cex=4)
+
+  venn.diagram(x=list(Beta.up.peak.g.loop=intersect(Beta.dn.GENE,Beta.up.peak.g.loop),Beta.up.peak.g=intersect(Beta.dn.GENE,Beta.up.peak.g),Beta.up.peak.g.nonP=intersect(Beta.dn.GENE,Beta.up.peak.g.nonP)),filename="dngene.UPgenedist.loop.tiff",category.names=c("up.pLG","up.p.promoter","up.p.nonP"),cat.col=c("skyblue","gold","red"),fill=c("skyblue","gold","red"),cex=4)
+
+  venn.diagram(x=list(Beta.up.peak.g.loop=intersect(Beta.up.GENE,Beta.dn.peak.g.loop),Beta.up.peak.g=intersect(Beta.up.GENE,Beta.dn.peak.g),Beta.up.peak.g.nonP=intersect(Beta.up.GENE,Beta.dn.peak.g.nonP)),filename="upgene.DNgenedist.loop.tiff",category.names=c("up.pLG","up.p.promoter","up.p.nonP"),cat.col=c("skyblue","gold","red"),fill=c("skyblue","gold","red"),cex=4)
+
+  venn.diagram(x=list(Beta.up.peak.g.loop=intersect(Beta.dn.GENE,Beta.dn.peak.g.loop),Beta.up.peak.g=intersect(Beta.dn.GENE,Beta.dn.peak.g),Beta.up.peak.g.nonP=intersect(Beta.dn.GENE,Beta.dn.peak.g.nonP)),filename="dngene.DNgenedist.loop.tiff",category.names=c("up.pLG","up.p.promoter","up.p.nonP"),cat.col=c("skyblue","gold","red"),fill=c("skyblue","gold","red"),cex=4)
+
+  #Generate Credible set and test supportive and counter evidence
+  UP.credible<-union(Beta.up.peak.g.loop,Beta.up.peak.g) %>% union(.,Beta.up.peak.g.nonP) %>% intersect(.,Beta.up.GENE)
+  UP.credible.evidence<-sapply(UP.credible,function(x){
+  UPPeak<-subset(Beta.Peakannotation.HiC,Peaks %in% c(row.names(betaT2D.diffPeaks.20bin.LSI$UP))) %>% subset(.,Gene.near==x |(abs(Dis.to.Tss.loop)<10000 &Gene.loop==x)) %>% .$Peaks %>% unique %>% length
+  DNPeak<-subset(Beta.Peakannotation.HiC,Peaks %in% c(row.names(betaT2D.diffPeaks.20bin.LSI$DN))) %>% subset(.,Gene.near==x |(abs(Dis.to.Tss.loop)<10000 &Gene.loop==x)) %>% .$Peaks %>% unique %>% length
+  return(c(UPPeak,DNPeak))
+}) %>% t
+  UP.credible<-data.frame(UP.credible,UP.credible.evidence)
+
+  DN.credible<-union(Beta.dn.peak.g.loop,Beta.dn.peak.g) %>% union(.,Beta.dn.peak.g.nonP) %>% intersect(.,Beta.dn.GENE)
+  DN.credible.evidence<-sapply(DN.credible,function(x){
+  UPPeak<-subset(Beta.Peakannotation.HiC,Peaks %in% c(row.names(betaT2D.diffPeaks.20bin.LSI$UP))) %>% subset(.,Gene.near==x |(abs(Dis.to.Tss.loop)<10000 &Gene.loop==x)) %>% .$Peaks %>% unique %>% length
+  DNPeak<-subset(Beta.Peakannotation.HiC,Peaks %in% c(row.names(betaT2D.diffPeaks.20bin.LSI$DN))) %>% subset(.,Gene.near==x |(abs(Dis.to.Tss.loop)<10000 &Gene.loop==x)) %>% .$Peaks %>% unique %>% length
+  return(c(UPPeak,DNPeak))
+}) %>% t
+  DN.credible<-data.frame(DN.credible,DN.credible.evidence)
+  ggplot()+geom_density(aes(X1-X2),data=UP.credible,color="blue")+geom_density(aes(X1-X2),data=DN.credible,color="red")
+  # saveRDS(UP.credible,"mydir/UP.credible")
+  # saveRDS(DN.credible,"mydir/DN.credible")
+  UP.credible<-readRDS("mydir/UP.credible")
+  DN.credible<-readRDS("mydir/DN.credible")
+  ##region test the influce of distance-to-TSS in Up-in-Up enrichemnt (Just take a look)
+Beta.up.peak.g<-Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$UP),]
+data.frame(Gene.Name=bin20.g.up,ExprChange="UP") %>% rbind(.,data.frame(Gene.Name=bin20.g.dn,ExprChange="DN")) %>% merge(.,Beta.up.peak.g,by="Gene.Name",all.y=T) -> upPeak.test
+Beta.dn.peak.g<-Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$DN),]
+data.frame(Gene.Name=bin20.g.up,ExprChange="UP") %>% rbind(.,data.frame(Gene.Name=bin20.g.dn,ExprChange="DN")) %>% merge(.,Beta.dn.peak.g,by="Gene.Name",all.y=T) -> dnPeak.test
+upPeak.test$ExprChange<-as.character(upPeak.test$ExprChange)
+upPeak.test$ExprChange[is.na(upPeak.test$ExprChange)]<-"NoChange"
+dnPeak.test$ExprChange<-as.character(dnPeak.test$ExprChange)
+dnPeak.test$ExprChange[is.na(dnPeak.test$ExprChange)]<-"NoChange"
+distance.test<-data.frame(L=c(0,1000,5000,10000,15000,20000,25000,30000,35000,40000,50000,75000,85000,100000),R=c(1000,5000,10000,15000,20000,25000,30000,35000,40000,50000,75000,85000,100000,Inf))
+Ratio.expect.up<-length(bin20.g.up)/length(rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts))
+Ratio.expect.dn<-length(bin20.g.dn)/length(rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts))
+distance.test<-distance.test[1:12,]
+Ratio<-c()
+for (i in 1:nrow(distance.test)){
+L<-distance.test[i,"L"]
+R<-distance.test[i,"R"]
+tmp.df<-subset(dnPeak.test, abs(Distance.to.TSS)>L & abs(Distance.to.TSS)<R)
+print(nrow(tmp.df))
+tmp<-tmp.df$ExprChange %>% table %>% as.matrix
+Ratio<-c(Ratio,tmp["DN",]/sum(tmp))
+}
+data.frame(distance.test,Ratio) %>% ggplot()+aes(L,Ratio,label=L)+geom_point()+geom_line()+geom_hline(yintercept=Ratio.expect.dn)+ylim(0,0.12)+geom_text_repel()+theme_bw()
+
+##
+
+v=c(1000,5000,10000,15000,20000,25000,30000,35000,40000,50000,75000,85000,100000,125000,150000,175000,200000,300000,400000,500000)
+
+upPinupG<-PeakEnrichinGene(ChosenPeak=row.names(betaT2D.diffPeaks.20bin.LSI$UP),ExprEnrich="UP")
+upPindnG<-PeakEnrichinGene(ChosenPeak=row.names(betaT2D.diffPeaks.20bin.LSI$UP),ExprEnrich="DN")
+
+
+dnPinupG<-PeakEnrichinGene(ChosenPeak=row.names(betaT2D.diffPeaks.20bin.LSI$DN),ExprEnrich="UP")
+dnPindnG<-PeakEnrichinGene(ChosenPeak=row.names(betaT2D.diffPeaks.20bin.LSI$DN),ExprEnrich="DN")
+
+randominUP<-PeakEnrichinGene(ChosenPeak=row.names(betaT2D.diffPeaks.20bin.LSI$pseudoregress.all[sample(1:nrow(betaT2D.diffPeaks.20bin.LSI$pseudoregress.all),4623),]),ExprEnrich="UP")
+
+
+grid.arrange(grobs=upPinupG[2:3])
+grid.arrange(grobs=upPindnG[2:3])
+grid.arrange(grobs=dnPindnG[2:3])
+grid.arrange(grobs=dnPinupG[2:3])
+
+PeakEnrichinGene<-function(ChosenPeak=row.names(betaT2D.diffPeaks.20bin.LSI$UP),distInUse=1:9,ExprEnrich="UP",v=c(1000,5000,10000,15000,20000,50000,100000,200000)){
+Test.peak.g.hic<-subset(Beta.Peakannotation.HiC,Peak %in% ChosenPeak)
+ExprChange.near<-data.frame(Gene.Name=bin20.g.up,ExprChange.near="UP") %>% rbind(.,data.frame(Gene.Name=bin20.g.dn,ExprChange.near="DN"))
+ExprChange.loop<-data.frame(Gene.Name=bin20.g.up,ExprChange.loop="UP") %>% rbind(.,data.frame(Gene.Name=bin20.g.dn,ExprChange.loop="DN"))
+merge(Test.peak.g.hic,ExprChange.near,by.x="Gene.near",by.y="Gene.Name",all.x=T)  %>% merge(.,ExprChange.loop,by.x="Gene.loop",by.y="Gene.Name",all.x=T)-> Peak.hic.test
+
+Peak.hic.test$ExprChange.near<-as.character(Peak.hic.test$ExprChange.near)
+Peak.hic.test$ExprChange.near[is.na(Peak.hic.test$ExprChange.near)]<-"NoChange"
+Peak.hic.test$ExprChange.loop<-as.character(Peak.hic.test$ExprChange.loop)
+Peak.hic.test$ExprChange.loop[is.na(Peak.hic.test$ExprChange.loop)]<-"NoChange"
+distance.test<-data.frame(L=c(0,v),R=c(v,Inf))
+EXP<-c(length(bin20.g.up)/length(rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)),length(bin20.g.dn)/length(rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts)))
+names(EXP)<-c("UP","DN")
+distance.test<-distance.test[distInUse,]
+Ratio.near<-c()
+Ratio.loop<-c()
+Peak.hic.test$ExprChange.near<-as.factor(Peak.hic.test$ExprChange.near)
+Peak.hic.test$ExprChange.loop<-as.factor(Peak.hic.test$ExprChange.loop)
+for (i in 1:nrow(distance.test)){
+L<-distance.test[i,"L"]
+R<-distance.test[i,"R"]
+tmp.near.df<-subset(Peak.hic.test, abs(Dis.to.Tss.near)>L & abs(Dis.to.Tss.near)<R) %>% .[,c("Gene.near","ExprChange.near")] %>% .[!duplicated(.),]
+tmp.loop.df<-subset(Peak.hic.test, abs(Dis.to.Tss.loop)>L & abs(Dis.to.Tss.loop)<R) %>% .[,c("Gene.near","ExprChange.loop")] %>% .[!duplicated(.),]
+print(paste(nrow(tmp.near.df),nrow(tmp.loop.df)))
+tmp.near<-tmp.near.df$ExprChange.near %>% table %>% as.matrix
+tmp.loop<-tmp.loop.df$ExprChange.loop %>% table %>% as.matrix
+Ratio.near<-c(Ratio.near,tmp.near[ExprEnrich,]/sum(tmp.near))
+Ratio.loop<-c(Ratio.loop,tmp.loop[ExprEnrich,]/sum(tmp.loop))
+}
+p.near<-data.frame(distance.test,Ratio.near) %>% ggplot()+aes(L,Ratio.near,label=L)+geom_point()+geom_line()+geom_hline(yintercept=EXP[ExprEnrich])+geom_text_repel()+theme_bw()
+p.loop<-data.frame(distance.test,Ratio.loop) %>% ggplot()+aes(L,Ratio.loop,label=L)+geom_point()+geom_line()+geom_hline(yintercept=EXP[ExprEnrich])+geom_text_repel()+theme_bw()
+return(list(Peak.hic.test=Peak.hic.test,p.near=p.near,p.loop=p.loop))
+}
+##endregion test the influce of distance-to-TSS in Up-in-Up enrichemnt (Just take a look)
+  ## Fisher's exact test for all.
+  N=length(rownames(Islet12.Beta.scRNA.seurat3@assays$RNA@counts))
+  expGeneList<-list(bin20.g.up,bin20.g.dn)
+  PeakGeneList<-list(Beta.up.peak.g,Beta.up.peak.g.nonP,Beta.up.peak.g.loop,Beta.dn.peak.g.loop,Beta.dn.peak.g.nonP,Beta.dn.peak.g)
+  ps<-matrix(,2,length(PeakGeneList))
+  odds<-matrix(,2,length(PeakGeneList))
+  for ( i in 1:2){
+    for(j in 1:length(PeakGeneList)){
+      a<-length(intersect(expGeneList[[i]],PeakGeneList[[j]]))
+      b<-length(expGeneList[[i]])-a
+      c<-length(PeakGeneList[[j]])-a
+      d<-N-c
+      md<-fisher.test(matrix(c(a,b,c,d),2,2))
+      ps[i,j]<-md$p.value
+      odds[i,j]<-md$estimate
+    }
+  }
+  row.names(ps)<-c("Up.gene","Dn.gene")
+  colnames(ps)<-c("Up.pk.P","Up.pk.nonP","Up.pk.L","Dn.pk.L","Dn.pk.nonP","Dn.pk.P")
+  row.names(odds)<-c("Up.gene","Dn.gene")
+  colnames(odds)<-c("Up.pk.P","Up.pk.nonP","Up.pk.L","Dn.pk.L","Dn.pk.nonP","Dn.pk.P")
+  toplot.m<-cbind(reshape2::melt(odds),pvalue=reshape2::melt(ps)[,3])
+  toplot.m$Var1<-factor(toplot.m$Var1,levels=c("Dn.gene","Up.gene"))
+  TagSig<-function(x){
+  if(x<0.001){return("***")}else if(x>=0.001 &x<0.01){return("**")}else if(x>=0.01 &x<0.05){return("*")}else{return("")}}
+  toplot.m$sig<-sapply(toplot.m$pvalue,TagSig)
+  pdf("RePACT.ATAC.HiC.RNA.enrichment.pdf",height=2.6)
+  ggplot(toplot.m)+aes(Var2,Var1,fill=log2(value),label=sig)+geom_tile(color="black",size=0.8)+scale_fill_gradient2(low="blue",high="red",mid="white")+geom_text(size=8)+theme_void()
+  dev.off()
+    ##endregion Venn diagram analysis and fisher's exact test
+
+    ##region RNA and ATAC side-byside heatmap
+  RNAATAC.genes.up.ordered<-data.frame(gene=Beta.up.peak.g,rank=(1:length(Beta.up.peak.g))/length(Beta.up.peak.g)) %>% merge(.,data.frame(gene=Beta.up.GENE,rank=(1:length(Beta.up.GENE)/length(Beta.up.GENE))),by="gene") %>% cbind(.,rank=.$rank.x*.$rank.y) %>% .[order(.$rank),]
+  RNAATAC.genes.dn.ordered<-data.frame(gene=Beta.dn.peak.g,rank=(1:length(Beta.dn.peak.g))/length(Beta.dn.peak.g)) %>% merge(.,data.frame(gene=Beta.dn.GENE,rank=(1:length(Beta.dn.GENE)/length(Beta.dn.GENE))),by="gene") %>% cbind(.,rank=.$rank.x*.$rank.y) %>% .[order(.$rank),]
+  ## draw RNA part
+  betT2D.toplot<-betT2D.diffGenes.20binNew$UPDN.toplot[,c(as.character(RNAATAC.genes.up.ordered$gene)[1:40],rev(as.character(RNAATAC.genes.dn.ordered$gene)[1:20]))]
+  betT2D.toplot.m<-apply(betT2D.toplot,2,function(x){(x-mean(x))/sd(x)}) %>% melt()
+  p1<-ggplot(betT2D.toplot.m)+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient(low="white",high="orange",limit=c(-1,2),oob=scales::squish)+theme_bw()
+  ## draw ATAC part
+  UpPeaks.plot<-Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$UP),] %>% subset(.,Annotation %in% c("5' UTR","promoter-TSS")| Distance.to.TSS<=1000 & Distance.to.TSS>=0) %>%  subset(.,Gene.Name %in% as.character(RNAATAC.genes.up.ordered$gene)[1:40])
+  UpPeaks.plot$Gene.Name<-factor(UpPeaks.plot$Gene.Name,levels=as.character(RNAATAC.genes.up.ordered$gene)[1:40])
+
+  DnPeaks.plot<-Beta.Peakannotation[row.names(betaT2D.diffPeaks.20bin.LSI$DN),] %>% subset(.,Annotation %in% c("5' UTR","promoter-TSS")| Distance.to.TSS<=1000 & Distance.to.TSS>=0) %>%  subset(.,Gene.Name %in% as.character(RNAATAC.genes.dn.ordered$gene)[1:20])
+  DnPeaks.plot$Gene.Name<-factor(DnPeaks.plot$Gene.Name,levels=rev(as.character(RNAATAC.genes.dn.ordered$gene)[1:20]))
+  Up.Dn.Peaks.ordered<-rbind(UpPeaks.plot,DnPeaks.plot) %>% .[order(.$Gene.Name),] %>% .[!duplicated(.$Gene.Name),]
+
+  betT2D.ATAC.toplot<-apply(betaT2D.diffPeaks.20bin.LSI$UPDN.toplot,2,function(x){scale(x)})[,row.names(Up.Dn.Peaks.ordered)]
+  betT2D.ATAC.toplot.m<-melt(betT2D.ATAC.toplot)  p2<-ggplot(betT2D.ATAC.toplot.m)+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_bw()
+  pdf("topATATVSRNA.pdf",height=10)
+  print(p1)
+  print(p2)
+  dev.off()
+
+  ##Make a side-byside heatmap for Loop-mediated genes
+  ##Summarize the regulatory distances; number of genes to regulate for loop mediating peaks
+Loops.UPPeak.UPGenes<-subset(Beta.Peakannotation.HiC,Peak %in% row.names(betaT2D.diffPeaks.20bin.LSI$UP) & abs(Dis.to.Tss.loop) <=10000)  %>%  subset(.,Gene.loop %in% Beta.up.GENE) %>% .[order(.$Peak),]
+Loops.UPPeak.UPGenes$TargetPOS<-strsplit(as.character(Loops.UPPeak.UPGenes$Target),":|-") %>% sapply(.,function(x){(as.numeric(x[3])+as.numeric(x[2]))/2})
+Loops.UPPeak.UPGenes$PeakPOS<-strsplit(as.character(Loops.UPPeak.UPGenes$Peak),"_") %>% sapply(.,function(x){(as.numeric(x[3])+as.numeric(x[2]))/2})
+Loops.DNPeak.DNGenes<-subset(Beta.Peakannotation.HiC,Peak %in% row.names(betaT2D.diffPeaks.20bin.LSI$DN) & abs(Dis.to.Tss.loop) <=10000)  %>%  subset(.,Gene.loop %in% Beta.dn.GENE) %>% .[order(.$Peak),]
+Loops.DNPeak.DNGenes$TargetPOS<-strsplit(as.character(Loops.DNPeak.DNGenes$Target),":|-") %>% sapply(.,function(x){(as.numeric(x[3])+as.numeric(x[2]))/2})
+Loops.DNPeak.DNGenes$PeakPOS<-strsplit(as.character(Loops.DNPeak.DNGenes$Peak),"_") %>% sapply(.,function(x){(as.numeric(x[3])+as.numeric(x[2]))/2})
+
+LoopPeaks<-rbind(Loops.UPPeak.UPGenes,Loops.DNPeak.DNGenes)
+LoopPeaks$LoopDistance<-abs(LoopPeaks$TargetPOS-LoopPeaks$PeakPOS)
+PromoterPeaks<-Beta.Peakannotation[c(row.names(betaT2D.diffPeaks.20bin.LSI$UP),row.names(betaT2D.diffPeaks.20bin.LSI$DN)),] %>% subset(.,Annotation %in% c("5' UTR","promoter-TSS")| (Distance.to.TSS<=1000 & Distance.to.TSS>=0))
+NearestPeaks<-Beta.Peakannotation[c(row.names(betaT2D.diffPeaks.20bin.LSI$UP),row.names(betaT2D.diffPeaks.20bin.LSI$DN)),] %>% subset(.,!(Annotation %in% c("5' UTR","promoter-TSS")| (Distance.to.TSS<=1000 & Distance.to.TSS>=0)))
+pdf("regulatory.dist.pdf")
+ggplot(LoopPeaks)+aes(log10(LoopDistance))+geom_density(fill="red2",alpha=0.6)+xlim(0,7)+geom_density(aes(log10(abs(Distance.to.TSS))),data=PromoterPeaks,fill="blue",alpha=0.6)+geom_density(aes(log10(abs(Distance.to.TSS))),data=NearestPeaks,fill="gold",alpha=0.6)+theme_classic()
+dev.off()
+#Rank
+Loops.UPPeak.UPGenes$Peak<-factor(Loops.UPPeak.UPGenes$Peak,levels=row.names(betaT2D.diffPeaks.20bin.LSI$UP))
+Loops.UPPeak.UPGenes$Gene.loop<-factor(Loops.UPPeak.UPGenes$Gene.loop,levels=Beta.up.GENE)
+Loops.UPPeak.UPGenes.ordered<-Loops.UPPeak.UPGenes[order(rank(Loops.UPPeak.UPGenes$Peak)*rank(Loops.UPPeak.UPGenes$Gene.loop)),]
+Loops.DNPeak.DNGenes$Peak<-factor(Loops.DNPeak.DNGenes$Peak,levels=row.names(betaT2D.diffPeaks.20bin.LSI$DN))
+Loops.DNPeak.DNGenes$Gene.loop<-factor(Loops.DNPeak.DNGenes$Gene.loop,levels=Beta.dn.GENE)
+Loops.DNPeak.DNGenes.ordered<-Loops.DNPeak.DNGenes[order(rank(Loops.DNPeak.DNGenes$Peak)*rank(Loops.DNPeak.DNGenes$Gene.loop)),]
+## draw RNA part
+  betT2D.toplot<-betT2D.diffGenes.20binNew$UPDN.toplot[,c(unique(as.character(Loops.UPPeak.UPGenes.ordered$Gene.loop)),unique(rev(as.character(Loops.DNPeak.DNGenes.ordered$Gene.loop))))]
+  betT2D.toplot.m<-apply(betT2D.toplot,2,function(x){(x-mean(x))/sd(x)}) %>% melt()
+  p1<-ggplot(betT2D.toplot.m)+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient(low="white",high="orange",limit=c(-1,2),oob=scales::squish)+theme_bw()
+  ## draw ATAC part
+  betT2D.ATAC.toplot<-apply(betaT2D.diffPeaks.20bin.LSI$UPDN.toplot,2,function(x){scale(x)})[,c(unique(as.character(Loops.UPPeak.UPGenes.ordered$Peak)),unique(rev(as.character(Loops.DNPeak.DNGenes.ordered$Peak))))]
+  betT2D.ATAC.toplot.m<-melt(betT2D.ATAC.toplot)
+  p2<-ggplot(betT2D.ATAC.toplot.m)+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_bw()
+  pdf("LoopMediate.ATAC.RNA.heatmap.pdf",height=12,width=6)
+  print(p1)
+  print(p2)
+  dev.off()
+
+
+  ## draw connections
+  Loops.UPPeak.UPGenes.ordered$Dir<-"UP"
+  Loops.DNPeak.DNGenes.ordered$Dir<-"DN"
+  LoopPeaks.ordered<-rbind(Loops.UPPeak.UPGenes.ordered,Loops.DNPeak.DNGenes.ordered[nrow(Loops.DNPeak.DNGenes.ordered):1,])
+  LoopPeaks.ordered$gene.index<-match(LoopPeaks.ordered$Gene.loop,unique((LoopPeaks.ordered$Gene.loop)))
+  LoopPeaks.ordered$peak.index<-match(LoopPeaks.ordered$Peak,unique((LoopPeaks.ordered$Peak)))
+  LoopPeaks.ordered$pair<-paste(LoopPeaks.ordered$Peak,LoopPeaks.ordered$Target,sep="")
+  datatoplot<-data.frame(point=LoopPeaks.ordered$Peak,cat="Peak",pair=LoopPeaks.ordered$pair,index=0.64925*LoopPeaks.ordered$peak.index,Dir=LoopPeaks.ordered$Dir) %>% rbind(.,data.frame(point=LoopPeaks.ordered$Gene.loop,cat="Gene",pair=LoopPeaks.ordered$pair,index=LoopPeaks.ordered$gene.index,Dir=LoopPeaks.ordered$Dir))
+  p3<-ggplot(datatoplot)+aes(cat,index,group=pair,color=Dir,label=point)+geom_point()+geom_line()
+  ##draw distance
+  LoopPeaks.ordered$TargetPOS<-strsplit(as.character(LoopPeaks.ordered$Target),":|-") %>% sapply(.,function(x){mean(c(as.numeric(x[2]),as.numeric(x[3])))})
+  LoopPeaks.ordered$PeakPOS<-strsplit(as.character(LoopPeaks.ordered$Peak),"_") %>% sapply(.,function(x){mean(c(as.numeric(x[2]),as.numeric(x[3])))})
+  LoopPeaks.ordered$Dist<-abs(LoopPeaks.ordered$TargetPOS-LoopPeaks.ordered$PeakPOS)
+  LoopPeaks.ordered$Gene.loop<-factor(LoopPeaks.ordered$Gene.loop,levels=c(unique(as.character(Loops.UPPeak.UPGenes.ordered$Gene.loop)),unique(rev(as.character(Loops.DNPeak.DNGenes.ordered$Gene.loop)))))
+  p4<-ggplot(LoopPeaks.ordered[nrow(LoopPeaks.ordered):1,])+aes(Gene.loop,log10(Dist))+geom_point(shape=3)+coord_flip()+ylim(4,6.5)
+  pdf("LoopMediate.ATAC.RNA.heatmap_patch.p3p4.pdf",height=12,width=3.5)
+  print(p3)
+  print(p4)
+  dev.off()
+  ##draw extra info bar
+  LoopUP.genes<-unique(as.character(Loops.UPPeak.UPGenes.ordered$Gene.loop))
+  LoopDN.genes<-unique(rev(as.character(Loops.DNPeak.DNGenes.ordered$Gene.loop)))
+  PromoterUP.tag<-c()
+  NearestUP.tag<-c()
+  PromoterDN.tag<-c()
+  NearestDN.tag<-c()
+  PromoterUP.tag[LoopUP.genes %in% Beta.up.peak.g]<-"On"
+  PromoterUP.tag[!LoopUP.genes %in% Beta.up.peak.g]<-"Off"
+  NearestUP.tag[LoopUP.genes %in% Beta.up.peak.g.nonP]<-"On"
+  NearestUP.tag[!LoopUP.genes %in% Beta.up.peak.g.nonP]<-"Off"
+  PromoterDN.tag[LoopDN.genes %in% Beta.dn.peak.g]<-"On"
+  PromoterDN.tag[!LoopDN.genes %in% Beta.dn.peak.g]<-"Off"
+  NearestDN.tag[LoopDN.genes %in% Beta.dn.peak.g.nonP]<-"On"
+  NearestDN.tag[!LoopDN.genes %in% Beta.dn.peak.g.nonP]<-"Off"
+  ExtraInfo.m<-rbind(data.frame(gene=LoopUP.genes,Promoter.tag=PromoterUP.tag,Nearest.tag=NearestUP.tag),data.frame(gene=LoopDN.genes,Promoter.tag=PromoterDN.tag,Nearest.tag=NearestDN.tag))  %>% melt(.,id.vars=("gene"))
+  ExtraInfo.m$gene<-factor(ExtraInfo.m$gene,levels=c(LoopUP.genes,LoopDN.genes))
+  p5<-ggplot(ExtraInfo.m)+aes(variable,gene,fill=value)+geom_tile(color="black")+scale_fill_manual(values=c("white","darkgreen"))
+  pdf("LoopMediate.ATAC.RNA.heatmap_patch.p5.pdf",height=12,width=3.5)
+  print(p5)
+  dev.off()
+  ##endregion RNA and ATAC side-byside heatmap
+
+##endregion DiffPeaks VS diffGenes
+
+##region Step 5 diff peaks motif analysis
+"
+bedtools getfasta -fi ~/Genome/hg19/hg19.fa -bed Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.bed -fo Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fa -name
+bedtools getfasta -fi ~/Genome/hg19/hg19.fa -bed Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.bed -fo Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fa -name
+
+Tfmotif=~/google/mysoftware/MEME/meme_4.12.0/Database/motif_databases/HUMAN/
+fimo --o Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fimo $Tfmotif/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fa
+
+fimo --o Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.extra.fimo ~/Chip-seq/ATAC/scATAC/MotifLibrary/20191219_Extra6_meme  Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fa
+
+## Run motif saperately
+ln -s /mnt/rstor/genetics/JinLab/ssz20/zshanshan/improve_image/parameter/epoch_test/GM12878_phasing/motif/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme.separate
+
+mkdir test_individual.Beta
+for file in `ls HOCOMOCOv11_full_HUMAN_mono_meme_format.meme.separate/*`;do
+        fimo --oc test_individual.Beta $file Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fa
+        cat test_individual.Beta/fimo.txt | grep -v sequence >> Beta.SVM.KNN.filteredFinal.HOCOMOCOv11_full.individual.merge
+done
+"
+CtrlP<-read.table("Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.bed")
+betaT2D.diffPeaks.20bin.LSI<-readRDS("mydir/betaT2D.diffpeak.20bin.LSI.rds")
+beta.all.motif<-read.table("./Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.fimo/fimo.txt")
+beta.all.motif.sig<-subset(beta.all.motif,V7<1e-5)
+beta.all.motif.sig$V1<-factor(beta.all.motif.sig$V1,levels=unique(beta.all.motif.sig$V1))
+
+## Saperate
+beta.all.motif.ind<-read.table("Beta.SVM.KNN.filteredFinal.HOCOMOCOv11_full.individual.merge")
+beta.all.motif.ind.sig<-subset(beta.all.motif.ind,V7<1e-5)
+beta.all.motif.ind.sig$V1<-factor(beta.all.motif.ind.sig$V1,levels=unique(beta.all.motif.ind.sig$V1))
+
+##region test p value distribution
+beta.all.motif.ind.sample<-beta.all.motif.ind[sample(1:nrow(beta.all.motif.ind),100000),]
+beta.all.motif.ind.sample$length<-nchar(as.character(beta.all.motif.ind.sample$V9))
+p1<-ggplot(beta.all.motif.ind.sample)+aes(length,-log10(V8),fill=as.factor(length))+geom_violin()+geom_boxplot(size=0.1,color="black")+geom_hline(yintercept=c(1,0.69,0.52))
+p2<-ggplot(beta.all.motif.ind.sample)+aes(length,-log10(V7),fill=as.factor(length))+geom_violin()+geom_boxplot(size=0.1,color="black")+geom_hline(yintercept=c(4,5,6,7,8))
+p3<-ggplot(beta.all.motif.ind.sample)+aes(length,fill=as.factor(length))+geom_histogram()
+##endregion
+
+UP.MotifResults.quantiled<-Motifenrich.binom.quantile(queryP=row.names(betaT2D.diffPeaks.20bin.LSI$UP),controlP.motif=beta.all.motif.ind,ctrlsize=sum(CtrlP$V3-CtrlP$V2))
+# saveRDS(UP.MotifResults.quantiled,"mydir/UP.MotifResults.quantiled")
+DN.MotifResults.quantiled<-Motifenrich.binom.quantile(queryP=row.names(betaT2D.diffPeaks.20bin.LSI$DN),controlP.motif=beta.all.motif.ind,ctrlsize=sum(CtrlP$V3-CtrlP$V2))
+# saveRDS(DN.MotifResults.quantiled,"mydir/DN.MotifResults.quantiled")
+UP.MotifResults.quantiled<-readRDS("mydir/UP.MotifResults.quantiled")
+DN.MotifResults.quantiled<-readRDS("mydir/DN.MotifResults.quantiled")
+
+##
+UP.MotifResults.binom<-Motifenrich.binom(subset(beta.all.motif.ind.sig,V2 %in% row.names(betaT2D.diffPeaks.20bin.LSI$UP)),beta.all.motif.ind.sig,alt="two.sided")
+DN.MotifResults.binom<-Motifenrich.binom(subset(beta.all.motif.ind.sig,V2 %in% row.names(betaT2D.diffPeaks.20bin.LSI$DN)),beta.all.motif.ind.sig,alt="two.sided")
+subset(UP.MotifResults.binom,qvalue<0.05 & FC>1.2) %>% .[order(.$FC,decreasing=T),] ->UP.toplot
+UP.toplot$Var1<-factor(UP.toplot$Var1,levels=rev(UP.toplot$Var1))
+subset(DN.MotifResults.binom,qvalue<0.05 & FC>1.2) %>% .[order(.$FC,decreasing=T),] ->DN.toplot
+DN.toplot$Var1<-factor(DN.toplot$Var1,levels=rev(DN.toplot$Var1))
+##Save this version, motif pvalue cutoff=1e-5, binomtest adn FC cutoff is 0.05, 1.2 respectively
+# saveRDS(UP.toplot,"mydir/UP.toplot")
+# saveRDS(DN.toplot,"mydir/UP.toplot")
+UP.toplot<-readRDS("mydir/UP.toplot")
+DN.toplot<-readRDS("mydir/UP.toplot")
+##endregion diff peaks motif analysis
+
+##region caRePACT motif analysis using chromvar
+library(Matrix.utils)
+library(chromVAR)
+library(SummarizedExperiment)
+library(Matrix)
+library(universalmotif)
+library(TFBSTools)
+library(motifmatchr)
+library(BSgenome.Hsapiens.UCSC.hg19)
+Beta.all.metadata<-readRDS("mydir/Beta.all.metadata")
+ALL.Beta.ATAC.Mtx<-readRDS("mydir/ALL.Beta.ATAC.Mtx")
+hocomoco.motifsList<-readRDS("mydir/hocomoco.motifsList")
+beta.atac.LSI.withinfo<-readRDS("mydir/beta.atac.LSI.withinfo")
+UP.toplot<-readRDS("mydir/UP.toplot")
+DN.toplot<-readRDS("mydir/UP.toplot")
+beta.atac.LSI.withinfo<-beta.atac.LSI.withinfo[order(beta.atac.LSI.withinfo$pseudo.index.balanced),]
+ALL.Beta.ATAC.Mtx<-ALL.Beta.ATAC.Mtx[which(!row.names(ALL.Beta.ATAC.Mtx) %>% strsplit(.,"_") %>%  sapply(.,length)>3),]
+Chr<-strsplit(row.names(ALL.Beta.ATAC.Mtx),"_") %>% lapply(.,function(x){x[1]}) %>% unlist
+Start<-strsplit(row.names(ALL.Beta.ATAC.Mtx),"_") %>% lapply(.,function(x){x[2]}) %>% unlist %>% as.numeric
+End<-strsplit(row.names(ALL.Beta.ATAC.Mtx),"_") %>% lapply(.,function(x){x[3]}) %>% unlist %>% as.numeric
+peaks<-GRanges(Chr,strand="*",ranges=IRanges(start=Start,end=End))
+fragment_counts <- SummarizedExperiment(assays = list(counts = ALL.Beta.ATAC.Mtx),rowRanges = peaks)
+fragment_counts@colData<-DataFrame(Beta.all.metadata)
+names(fragment_counts@colData)[2]<-"depth"
+fragment_counts <- addGCBias(fragment_counts, genome = BSgenome.Hsapiens.UCSC.hg19)
+counts_filtered <- filterPeaks(fragment_counts)
+motif_ix <- matchMotifs(hocomoco.motifsList, counts_filtered, genome = BSgenome.Hsapiens.UCSC.hg19)
+bg <- getBackgroundPeaks(object = counts_filtered)
+dev <- computeDeviations(object = counts_filtered, annotations = motif_ix,background_peaks = bg)
+Motif.T2D.trj.toplot<-dev@assays@data$z %>% t() %>% Tomerge_v2(.,beta.atac.LSI.withinfo[,c("rank","donor","disease","pseudo.index.balanced")])
+# saveRDS(Motif.T2D.trj.toplot,"mydir/Motif.T2D.trj.toplot")
+Motif.T2D.trj.toplot<-readRDS("mydir/Motif.T2D.trj.toplot")
+Motif.T2D.trj.toplot<-Motif.T2D.trj.toplot[complete.cases(Motif.T2D.trj.toplot),]
+BetaCellvsMotif<-Motif.T2D.trj.toplot[,1:775]
+BetaCellMotif.meta<-Motif.T2D.trj.toplot[,776:779]
+##Check Z score by donor
+# ggplot(Motif.T2D.trj.toplot)+aes_string("donor","FOSL1_HUMAN.H11MO.0.A",fill="disease")+geom_boxplot()
+##Identify differenal motifs
+ps<-c()
+slopes<-c()
+rsquares<-c()
+for(i in 1:775){
+  md<-lm(Motif.T2D.trj.toplot[,i]~Motif.T2D.trj.toplot[,"pseudo.index.balanced"])
+  ps<-c(ps,summary(md)$coefficients[2,4])
+  slopes<-c(slopes,summary(md)$coefficients[2,1])
+  rsquares<-c(rsquares,summary(md)$r.square)
+}
+mds<-data.frame(row.names=colnames(Motif.T2D.trj.toplot)[1:775],ps=ps,slopes=slopes,rsquare=rsquares)
+beta.T2D.motif.200bin<-MakeEvenBin(cellvsPeak.m=BetaCellvsMotif,data.info=BetaCellMotif.meta,binnumber=270)
+# Motif.T2D.trj.toplot[,c("P53_HUMAN.H11MO.0.A","P53_HUMAN.H11MO.1.A","HNF1A_HUMAN.H11MO.0.C","HNF1B_HUMAN.H11MO.0.A", "HNF1B_HUMAN.H11MO.1.A","NDF1_HUMAN.H11MO.0.A","NEUROD1.MA1109.1","NGN2_HUMAN.H11MO.0.D","NDF2_HUMAN.H11MO.0.B","ISL1_HUMAN.H11MO.0.A","pseudo.index.balanced","rank")] %>% melt(.,id.vars=c("rank","pseudo.index.balanced")) %>% ggplot()+aes(rank,variable,fill=value)+geom_tile()+scale_fill_gradient(low="slateblue4",high="gold",lim=c(0,1.5),oob=scales::squish)
+upmotif.confident<-row.names(head(mds[order(mds$slopes,decreasing=T),],50)) %>% .[order(.)] %>% .[. %in% UP.toplot$Var1]
+dnmotif.confident<-row.names(head(mds[order(mds$slopes,decreasing=F),],50)) %>% .[order(.)] %>% .[. %in% DN.toplot$Var1]
+# write.csv(upmotif.confident,"upmotif.confident.csv")
+# write.csv(dnmotif.confident,"dnmotif.confident.csv")
+upmotif.confident<-read.csv("upmotif.confident.sort.csv",header=F)$V1 %>% as.character
+dnmotif.confident<-rev(read.csv("dnmotif.confident.sort.csv",header=F)$V1)  %>% as.character
+#Plot motif chromVar heatmap
+motifheat.confident.toplot<-beta.T2D.motif.200bin[,c(upmotif.confident,dnmotif.confident,"bin")] %>% melt(.,id.vars=c("bin"))
+motifheat.confident.toplot$variable<-strsplit(as.character(motifheat.confident.toplot$variable),"\\.|_") %>% sapply(.,function(x){paste(x[1],x[4],x[5],sep=".")})
+motifheat.confident.toplot$variable<-factor(motifheat.confident.toplot$variable,levels=unique(motifheat.confident.toplot$variable))
+p.motifheat.confident<-ggplot(motifheat.confident.toplot)+aes(bin,variable,fill=value)+geom_tile()+scale_fill_gradient(low="slateblue4",high="gold",lim=c(-0.5,0.5),oob=scales::squish)+theme_bw()
+#Plot motif enrichment using my previous method
+UP.toplot.confident<-UP.toplot[match(upmotif.confident,UP.toplot$Var1),]
+UP.toplot.confident$Var1<-factor(UP.toplot.confident$Var1,levels=UP.toplot.confident$Var1)
+p.UP.toplot.confident<-ggplot(UP.toplot.confident)+aes(FC,Var1,fill=-log10(qvalue))+geom_bar(stat="identity",color="black")+scale_fill_gradient(low="white",high="red",lim=c(2,8),oob=scales::squish)+theme_bw()+theme(axis.text=element_text(size=12,color="black"))
+#Plot motif enrichment bargraph using my previous method
+DN.toplot.confident<-DN.toplot[match(dnmotif.confident,DN.toplot$Var1),]
+DN.toplot.confident$Var1<-factor(DN.toplot.confident$Var1,levels=DN.toplot.confident$Var1)
+p.DN.toplot.confident<-ggplot(DN.toplot.confident)+aes(FC,Var1,fill=-log10(qvalue))+geom_bar(stat="identity",color="black")+scale_fill_gradient(low="white",high="purple",lim=c(2,8),oob=scales::squish)+theme_bw()+theme(axis.text=element_text(size=12,color="black"))
+#Plot motif logos
+library(universalmotif)
+library(ggseqlogo)
+Hocomoco<-read_meme("~/google/mysoftware/MEME/meme_4.12.0/Database/motif_databases/HUMAN/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme")
+motifs<-list()
+for (drawM in Hocomoco[match(rev(c(upmotif.confident,dnmotif.confident)),sapply(Hocomoco,function(x){x@name}))]){
+  motif<-drawM@name
+  p<-ggseqlogo(drawM@motif)+theme_void()
+  motifs<-c(motifs,list(p))
+}
+#Plot out figures
+pdf("caRePCT.confi.motiflogos.pdf",width=2.5,height=24)
+grid.arrange(grobs=motifs,ncol=1)
+dev.off()
+pdf("caRePACT.Confi.motif.pdf")
+print(p.motifheat.confident)
+print(p.UP.toplot.confident)
+print(p.DN.toplot.confident)
+dev.off()
+  ##region Double-check quantile results
+  UP.MotifResults.quantiled<-readRDS("mydir/UP.MotifResults.quantiled")
+  DN.MotifResults.quantiled<-readRDS("mydir/DN.MotifResults.quantiled")
+    pdf("UP.MotifResults.quantiled.cnfdt.pdf")
+      for(upmotif in upmotif.confident){
+          p<-ggplot(UP.MotifResults.quantiled[[upmotif]])+aes(rank,FC,color=-log10(binom.pvalue),label=Motif.qval)+geom_point(size=4)+scale_color_gradient(low="white",high="red",lim=c(2,10),oob=scales::squish)+geom_hline(yintercept=c(1,1.2,1.5))+geom_text_repel(color="black")+ggtitle(upmotif)+theme_bw()
+          p.ctrl<-ggplot(DN.MotifResults.quantiled[[upmotif]])+aes(rank,FC,color=-log10(binom.pvalue),label=Motif.qval)+geom_point(size=4)+scale_color_gradient(low="white",high="blue",lim=c(2,10),oob=scales::squish)+geom_hline(yintercept=c(1,1.2,1.5))+geom_text_repel(color="black")+ggtitle(paste("up motifs on DN-peaks_",upmotif,sep=""))+theme_bw()
+      print(p)
+      print(p.ctrl)
+    }
+    dev.off()
+
+    pdf("DN.MotifResults.quantiled.cnfdt.pdf")
+    for(dnmotif in dnmotif.confident){
+      p<-ggplot(DN.MotifResults.quantiled[[dnmotif]])+aes(rank,FC,color=-log10(binom.pvalue),label=Motif.qval)+geom_point(size=4)+scale_color_gradient(low="white",high="blue",lim=c(2,10),oob=scales::squish)+geom_hline(yintercept=c(1,1.2,1.5))+geom_text_repel(color="black")+ggtitle(dnmotif)+theme_bw()
+      p.ctrl<-ggplot(UP.MotifResults.quantiled[[dnmotif]])+aes(rank,FC,color=-log10(binom.pvalue),label=Motif.qval)+geom_point(size=4)+scale_color_gradient(low="white",high="red",lim=c(2,10),oob=scales::squish)+geom_hline(yintercept=c(1,1.2,1.5))+geom_text_repel(color="black")+ggtitle(dnmotif)+theme_bw()
+      print(p)
+      print(p.ctrl)
+    }
+    dev.off()
+##endregion Double-check quantile results
+
+##endregion
+
+##region caRePACT motif network analysis
+#Load motif-Genename dictionary
+TF.name.dic<-read.delim("human_mono_motifs.tsv")
+TF.name.dic$GENE<-strsplit(as.character(TF.name.dic$Transcription.factor),":") %>% sapply(.,function(x){x[2]})
+row.names(TF.name.dic)<-TF.name.dic$Model
+#Load cinfident up/dn T2D motifs
+upmotif.confident<-read.csv("upmotif.confident.sort.csv",header=F)$V1 %>% as.character
+dnmotif.confident<-rev(read.csv("dnmotif.confident.sort.csv",header=F)$V1)  %>% as.character
+#Load RNA rePACT result
+betT2D.diffGenes.20binNew<-readRDS("mydir/betT2D.diffGenes.20binNew")
+up.dn.motif.genes<-rev(unique(TF.name.dic[c(upmotif.confident,dnmotif.confident),]$GENE))
+# write.csv(up.dn.motif.genes,"up.dn.motif.cnfdt.genes.csv")
+up.dn.motif.genes.curated<-read.csv("up.dn.motif.cnfdt.genes.curate.csv",header=F)
+row.names(up.dn.motif.genes.curated)<-up.dn.motif.genes.curated$V1
+up.dn.motif.genes.curated$V1<-factor(up.dn.motif.genes.curated$V1,levels=up.dn.motif.genes.curated$V1)
+RNArePCT.up.dn.motif.genes.curated<-Tomerge_v2(up.dn.motif.genes.curated,betT2D.diffGenes.20binNew$pseudoregress.all[,c("slope","qvalue","MaxRPKM")],leavex=T) %>% .[order(.$V1),]
+subset(RNArePCT.up.dn.motif.genes.curated,qvalue<=0.2)
+KeyVariableTFs<-rev(c("HNF1A","HNF1B","RFX6","ZBTB7A","MBD2","TCF4","CEBPD","STAT3","PPARD","NFIA","NFIC","NFYA","NFYC","TP53","MAFA","ISL1","OLIG3","NEUROD1"))
+KeyVariableTF.toplot<-betT2D.diffGenes.20binNew$UPDN.toplot[,KeyVariableTFs]
+KeyVariableTF.toplot.m<-apply(KeyVariableTF.toplot,2,function(x){(x-mean(x))/sd(x)}) %>% melt()
+pdf("KeyVariableTF.expr.pdf",height=4)
+ggplot(KeyVariableTF.toplot.m)+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient(low="white",high="orange",limit=c(-1,2),oob=scales::squish)+theme_bw()
+dev.off()
+
+betaT2D.diffPeaks.20bin.LSI<-readRDS("mydir/betaT2D.diffpeak.20bin.LSI.rds")
+beta.all.motif.ind<-read.table("Beta.SVM.KNN.filteredFinal.HOCOMOCOv11_full.individual.merge")
+beta.all.motif.ind.sig<-subset(beta.all.motif.ind,V7<1e-5)
+#Load peak annotation with HiC
+# Beta.Peakannotation<-read.delim("Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed.annotated")
+# row.names(Beta.Peakannotation)<-paste(Beta.Peakannotation[,"Chr"],(Beta.Peakannotation[,"Start"]-1),Beta.Peakannotation[,"End"],sep="_")
+# Beta.Peakannotation<-Beta.Peakannotation[,c("Annotation","Distance.to.TSS","Gene.Name")]
+# Beta.Peakannotation$Annotation<-strsplit(as.character(Beta.Peakannotation$Annotation)," (",fix=T) %>% sapply(.,function(x){x[[1]]})
+Beta.Peakannotation.HiC<-readRDS("mydir/Beta.Peakannotation.HiC")
+names(Beta.Peakannotation.HiC)[1]<-"Peaks"
+TF.keys<-c("HNF1A","RFX6","ZBTB7A","MBD2","TCF4","CEBPD","STAT3","PPARD","NFIA","NFYA","TP53","MAFA","ISL1","OLIG3","NEUROD1")
+motifs.lst=list(c("HNF1A_HUMAN.H11MO.0.C","HNF1B_HUMAN.H11MO.0.A","HNF1B_HUMAN.H11MO.1.A"),
+c("RFX1_HUMAN.H11MO.0.B","RFX2_HUMAN.H11MO.0.A","RFX1_HUMAN.H11MO.1.B","RFX2_HUMAN.H11MO.1.A","RFX3_HUMAN.H11MO.0.B","RFX4_HUMAN.H11MO.0.D"),c("ZBT7A_HUMAN.H11MO.0.A"),
+c("MBD2_HUMAN.H11MO.0.B"),
+c("ITF2_HUMAN.H11MO.0.C"),
+c("CEBPZ_HUMAN.H11MO.0.D"),
+c("STAT3_HUMAN.H11MO.0.A","STAT1_HUMAN.H11MO.0.A"),
+c("PPARA_HUMAN.H11MO.1.B"),
+c("NFIC_HUMAN.H11MO.1.A","NFIC_HUMAN.H11MO.0.A","NFIA_HUMAN.H11MO.0.C"),
+c("NFYA_HUMAN.H11MO.0.A","NFYB_HUMAN.H11MO.0.A","NFYC_HUMAN.H11MO.0.A"),
+c("MAF_HUMAN.H11MO.0.A","MAFA_HUMAN.H11MO.0.D","MAFB_HUMAN.H11MO.0.B","MAFG_HUMAN.H11MO.0.A"),
+c("ISL1_HUMAN.H11MO.0.A"),
+c("OLIG2_HUMAN.H11MO.1.B","OLIG2_HUMAN.H11MO.0.B"),
+c("NDF2_HUMAN.H11MO.0.B","NDF1_HUMAN.H11MO.0.A","NGN2_HUMAN.H11MO.0.D")
+)
+Directions<-c(rep("DN",4),rep("UP",10))
+
+Links.all<-c()
+Nodes.all<-c()
+for(i in 1:14){
+TF.cur<-TF.keys[i]
+PeakDir<-Directions[i]
+motifs<-motifs.lst[[i]]
+beta.all.motif.ind.sig.test<-subset(beta.all.motif.ind.sig,V1 %in% motifs)
+PeakMotifGene.tmp<-data.frame(slope=betaT2D.diffPeaks.20bin.LSI[[PeakDir]]$slope,Peaks=row.names(betaT2D.diffPeaks.20bin.LSI[[PeakDir]])) %>% merge(.,beta.all.motif.ind.sig.test[,c("V1","V2")],by.x="Peaks",by.y="V2") %>% merge(.,Beta.Peakannotation.HiC,by="Peaks")
+TopRePACT.genes<-subset(betT2D.diffGenes.20binNew$pseudoregress.all[!row.names(betT2D.diffGenes.20binNew$pseudoregress.all) %in% KeyVariableTFs,],qvalue<0.005) %>% rbind(.,subset(betT2D.diffGenes.20binNew$pseudoregress.all[KeyVariableTFs,],qvalue<=0.2))
+Gene.near.peaks<-subset(PeakMotifGene.tmp,Gene.near %in% row.names(TopRePACT.genes)) %>% .[,c("Peaks","Gene.near")] %>% .[!duplicated(.),] %>% cbind(.,slope=TopRePACT.genes[as.character(.$Gene.near),"slope"]) %>% .[order(.$Gene.near),]
+Gene.loop.peaks<-subset(PeakMotifGene.tmp,Gene.loop %in% row.names(TopRePACT.genes) & abs(Dis.to.Tss.loop)<10000) %>% .[,c("Peaks","Gene.loop")] %>% .[!duplicated(.),] %>% cbind(.,slope=TopRePACT.genes[as.character(.$Gene.loop),"slope"]) %>% .[order(.$Gene.loop),]
+Regulatee<-unique(c(as.character(Gene.near.peaks$Gene.near),as.character(Gene.loop.peaks$Gene.loop)))
+Regulatee.info<-data.frame(Regulatee,Local=sapply(Regulatee,function(x){length(which(Gene.near.peaks$Gene.near==x))}),Loop=sapply(Regulatee,function(x){length(which(Gene.loop.peaks$Gene.loop==x))}))
+Regulatee.info$Total<-Regulatee.info$Local+Regulatee.info$Loop
+Regulatee.info$Tag<-apply(Regulatee.info,1,function(x){if(x[2]>0 &x[3]==0){return("Local")}else if(x[2]==0 &x[3]>0){return("Loop")}else{return("Local_Loop")}})
+if(nrow(Regulatee.info)==0){next}
+link<-data.frame(Regulator=TF.cur,Regulatee.info,cat=PeakDir)
+Nodes<-data.frame(Nodes=c(TF.cur,row.names(Regulatee.info))) %>% cbind(.,TopRePACT.genes[as.character(.$Nodes),c("slope","qvalue")],cat=PeakDir)
+Links.all<-rbind(Links.all,link)
+Nodes.all<-rbind(Nodes.all,Nodes)
+}
+
+Nodes.all<-Nodes.all[!duplicated(Nodes.all),]
+TFtag<-c()
+TFtag[which(Nodes.all$Nodes %in% TFvector)]<-"TF"
+TFtag[which(!Nodes.all$Nodes %in% TFvector)]<-"NTF"
+Nodes.all$TFtag<-TFtag
+# saveRDS(Links.all,"mydir/Links.all")
+# saveRDS(Nodes.all,"mydir/Nodes.all")
+Links.all<-readRDS("mydir/Links.all")
+Nodes.all<-readRDS("mydir/Nodes.all")
+##Make an igraph object
+##Filter by credible evidence first
+UP.credible<-readRDS("mydir/UP.credible")
+DN.credible<-readRDS("mydir/DN.credible")
+
+DN.toRemove<-row.names(subset(Nodes.all,cat=="DN"))[row.names(subset(Nodes.all,cat=="DN")) %in% row.names(subset(UP.credible,(X1-X2)>=0))]
+DN.toRemove.2<-row.names(subset(Nodes.all,slope>=0))
+
+net.dn<- graph_from_data_frame(d=subset(Links.all,cat=="DN" & !Regulatee %in% DN.toRemove.2), vertices=subset(Nodes.all,cat=="DN" & !Nodes %in% DN.toRemove.2), directed=T)
+V(net.dn)$size <- 3
+tkid <- tkplot(net.dn) #tkid is the id of the tkplot that will open
+l.dn <- tkplot.getcoords(tkid)
+# saveRDS(tkid,"mydir/tkid.ldn")
+# saveRDS(l.dn,"mydir/l.dn")
+l.dn<-readRDS("mydir/l.dn")
+tk_close(tkid, window.close = T)
+V(net.dn)$shape<-c("circle","square")[as.numeric(mapvalues(V(net.dn)$TFtag,from=c("TF","NTF"),to=c(1,2)))]
+V(net.dn)$color<-ifelse(V(net.dn)$slope<0,"steelblue","gold")
+E(net.dn)$color<-mapvalues(E(net.dn)$Tag,from=c("Local","Loop","Local_Loop"),to=c("palegreen","orange","darkred"))
+# V(net.dn)$label.family<-"Arial"
+V(net.dn)$label.cex<-1.5
+# E(net.dn)$width<-2*E(net.dn)$Total
+pdf("T2D.Dn.network.2.pdf",height=10,width=20)
+plot(net.dn,edge.arrow.size=0.5,vertex.label.size=0.5,edge.width=2.5,vertex.size=3,vertex.label.dist	 =1,vertex.label.color="black",dge.curved=0.5,layout=l.dn,asp=0.5,vertex.label.degree=-pi/2)
+dev.off()
+UP.toRemove<-c(row.names(subset(Nodes.all,cat=="UP"))[row.names(subset(Nodes.all,cat=="UP")) %in% row.names(subset(DN.credible,(X1-X2)<=0))],"RFX6")
+UP.toRemove.2<-row.names(subset(Nodes.all,slope<0))
+UP.toRemove.3<-subset(Nodes.all,slope>0) %>% subset(!Nodes %in% KeyVariableTFs) %>% subset(.,qvalue>0.0001) %>% row.names
+net.up<- graph_from_data_frame(d=subset(Links.all,cat=="UP" & !Regulatee %in% c(UP.toRemove.2,UP.toRemove.3)), vertices=subset(Nodes.all,cat=="UP" & !Nodes %in% c(UP.toRemove.2,UP.toRemove.3)), directed=T)
+V(net.up)$size <- 3
+tkid <- tkplot(net.up) #tkid is the id of the tkplot that will open
+l.up <- tkplot.getcoords(tkid)
+tk_close(tkid, window.close = T)
+V(net.up)$shape<-c("circle","square")[as.numeric(mapvalues(V(net.up)$TFtag,from=c("TF","NTF"),to=c(1,2)))]
+V(net.up)$color<-ifelse(V(net.up)$slope<0,"steelblue","purple")
+E(net.up)$color<-mapvalues(E(net.up)$Tag,from=c("Local","Loop","Local_Loop"),to=c("palegreen","orange","darkred"))
+# V(net.up)$label.family<-"Arial"
+V(net.up)$label.cex<-1.5
+# E(net.up)$width<-2*E(net.up)$Total
+pdf("T2D.up.network.2.pdf",height=10,width=20)
+plot(net.up,edge.arrow.size=0.5,vertex.label.size=0.5,edge.width=2.5,vertex.size=3,vertex.label.dist	 =1,vertex.label.color="black",dge.curved=0.5,layout=l.up,asp=0.5,vertex.label.degree=-pi/2)
+dev.off()
+
+net.all<- graph_from_data_frame(d=subset(Links.all,cat=="DN" & !Regulatee %in% DN.toRemove), vertices=subset(Nodes.all,cat=="DN" & !Nodes %in% DN.toRemove), directed=T)
+l <- layout_with_fr(net.all)
+V(net.all)$shape<-c("circle","square")[as.numeric(mapvalues(V(net.all)$TFtag,from=c("TF","NTF"),to=c(1,2)))]
+V(net.all)$color<-ifelse(V(net.all)$slope<0,"steelblue","purple")
+E(net.all)$color<-mapvalues(E(net.all)$Tag,from=c("Local","Loop","Local_Loop"),to=c("palegreen","orange","darkred"))
+# V(net.up)$label.family<-"Arial"
+V(net.all)$label.cex<-0.8
+plot(net.all,edge.arrow.size=0.5,edge.width=2.5,vertex.size=3,vertex.label.dist	 =1,vertex.label.color="black",dge.curved=0.5,layout=l,asp=0.5,vertex.label.degree=-pi/2)
+
+
+##endregion caRePACT motif network analysis

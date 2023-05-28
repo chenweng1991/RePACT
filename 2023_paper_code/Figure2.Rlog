@@ -1,0 +1,1092 @@
+##region Cell type Peak Study
+"
+for i in {1..10}
+do
+~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step1.pl Dnsample.$i.tab Dnsample.$i &
+done
+
+for monoclonal in `ls| grep Dnsample.10.bed`;   # 1-10
+do
+macs2 callpeak -f BEDPE -t $monoclonal -g hs  -n ${monoclonal/.bed/} &
+done
+
+for narrowPeak in `ls| grep Dnsample.10_peaks.narrowPeak$`; # 1-10
+do
+cut -f1-4 $narrowPeak > $narrowPeak.bed
+done
+
+cat `ls| grep "Alpha\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergeAlpha.DN.1_10.narrowPeak.bed
+cat `ls| grep "Beta\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergeBeta.DN.1_10.narrowPeak.bed
+cat `ls| grep "Delta\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergeDelta.DN.1_10.narrowPeak.bed
+cat `ls| grep "PP\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergePP.DN.1_10.narrowPeak.bed
+cat `ls| grep "Duct\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergeDuct.DN.1_10.narrowPeak.bed
+cat `ls| grep "Acinar\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergeAcinar.DN.1_10.narrowPeak.bed
+cat `ls| grep "PSC\.Dnsample.[0-9]*_peaks.narrowPeak.bed"` | sort -k1,1 -k2,2n | bedtools merge > MergePSC.DN.1_10.narrowPeak.bed
+
+## Create long format
+for MergePeak in `ls |grep "Merge"`
+do
+Nametmp=${MergePeak/.DN.1_10.narrowPeak.bed/}
+Name=${Nametmp/Merge/}
+echo $Name
+for  RandomDown in `ls| grep "$Name\.Dnsample.[0-9]*_peaks.narrowPeak.bed"`
+do
+  bedtools intersect -a $RandomDown -b $MergePeak -wa -wb | awk 'OFS="\t" {print $5,$6,$7,$4}' >> $Name.ReproducePeaks.long
+done
+done
+"
+##
+ReproducePeaks.list<-list()
+library(Matrix.utils)
+Names<-c()
+for(file in list.files()[grep("long",list.files())])
+{
+Names<-c(Names,strsplit(file,".",fixed=T) %>% sapply(.,function(x){x[1]}))
+tmp<-read.table(file)
+df<-data.frame(Pos=paste(tmp$V1,tmp$V2,tmp$V3,sep="_"),RandomDn=tmp$V4,cts=1)
+df$RandomDn<-strsplit(as.character(df$RandomDn),"_") %>% sapply(.,function(x){x[[1]]}) %>% strsplit(.,".",fixed=T) %>% sapply(.,function(x){x[3]}) %>% paste("DN",.,sep="_")
+Mtx<-dMcast(df,Pos~RandomDn)
+Mtx[which(Mtx>1)]<-1
+ReproducePeaks.list<-c(ReproducePeaks.list,list(Mtx))
+}
+names(ReproducePeaks.list)<-Names
+ReproducePeaks.list.score<-lapply(ReproducePeaks.list,function(x){rowSums(x)})
+ReproducePeaks.list.score.processed<-lapply(ReproducePeaks.list.score,function(x){
+data.frame(Score=x,rank=rank(-x,ties.method="random")) %>% .[order(.$rank),]
+})
+### Use regions with reproducibility score >=3
+ReproducePeaks.list.score.processed.filter<-lapply(ReproducePeaks.list.score.processed,function(x){subset(x,Score>=3)})
+###write out reproducible peaks
+setwd("Chip-seq/ATAC/scATAC/IsletscATAC/Islet12.F.track/Dnsample")
+for (i in 1:length(ReproducePeaks.list.score.processed.filter))
+{
+name<-names(ReproducePeaks.list.score.processed.filter)[i]
+tmp<-strsplit(row.names(ReproducePeaks.list.score.processed.filter[[i]]),"_")
+df<-tmp[lapply(tmp,function(x){length(x)})==3] %>% do.call(rbind,.) %>% as.data.frame
+write.table(df,paste(name,"Reproduciblepeak.bed",sep="."),quote=F,sep="\t",row.names=F,col.names=F)
+}
+## Generagte dac matrix
+"
+cat `ls | grep Reproduciblepeak.bed` | sort -k1,1 -k2,2n | bedtools merge | awk '{print $1,$2,$3,$1"_"$2"_"$3}' OFS="\t" > Merge.DN.reproducible.narrowPeak.bed
+cd ~/Chip-seq/ATAC/scATAC/IsletscATAC
+cp Islet12.F.track/Dnsample/Merge.DN.reproducible.narrowPeak.bed ./
+less source | ./GenerateDAC.pl Merge.DN.reproducible.narrowPeak.bed IsletALLPeak.reproducible
+bedToBigBed  Merge.DN.reproducible.narrowPeak.bed ~/Genome/hg19/hg19.chrom.sizes Islet12.ALL.Merge.DN.reproducible.bb
+bedToBigBed  Islet12.ALL.narrow.bed ~/Genome/hg19/hg19.chrom.sizes Islet12.ALL.narrow.bb
+"
+##endregion
+
+
+##endregion 2020-9-11-a Call Specific peaks for each cell type by downsampling
+
+
+  ##region 2020-9-22  Call top 32000 peaks using MACS (bash)
+'
+## I decided to use MACS2 narrow peaks top 32000 peaks
+
+macs2 callpeak -f BEDPE -t Acinar.SVM.KNN.filteredFinal.bed -q 0.2 -g hs  -n Acinar.SVM.KNN.filteredFinal.q0.2
+## Other celltypes used default
+cd /mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/IsletscATAC/Islet12.F.track
+
+for narrowPeak in `ls | grep narrowPeak`
+do
+sort -nrk9,9 $narrowPeak | head -n 32000 | cut -f1-4 >${narrowPeak/_peaks.narrowPeak/.32000.bed}
+done
+
+for Peak in `ls | grep 32000.bed`
+do
+cut -f1-4 $Peak | sort -k1,1 -k2,2n > $Peak.bed.tmp
+echo $Peak.bed.tmp
+bedToBigBed $Peak.bed.tmp ~/Genome/hg19/hg19.chrom.sizes $Peak.bed.tmp.bb
+done
+
+for file in `ls | grep tmp.bb`
+do
+    cp $file /mnt/rstor/genetics/JinLab/fxj45/WWW/CW/scATAC2019/$file
+    echo -ne "track type=bigBed name=$file description=$file visibility=dense autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/$file\n"
+done
+
+cat `ls | grep 32000.bed$` | sort -k1,1 -k2,2n | bedtools merge > Islet12.ALL.totalPeak.TOP32K.bed
+
+## Take intersect for each CellType in the totalPeak
+
+for mono in  `ls | grep filteredFinal.bed`
+do
+bedtools intersect -a Islet12.ALL.totalPeak.TOP32K.bed -b $mono -c > ${mono/.bed/onTotoalPeak.cts}
+done
+  '
+  ##region Filtering blacklist
+'
+wget http://mitra.stanford.edu/kundaje/akundaje/release/blacklists/hg19-human/wgEncodeHg19ConsensusSignalArtifactRegions.bed.gz
+bedtools intersect -a Islet12.ALL.totalPeak.TOP32K.bed -b wgEncodeHg19ConsensusSignalArtifactRegions.bed -v -wa > Islet12.ALL.totalPeak.TOP32K.noBlack.bed
+for ctsfile in `ls | grep onTotoalPeak.cts`
+do
+bedtools intersect -a $ctsfile -b wgEncodeHg19ConsensusSignalArtifactRegions.bed -v -wa > $ctsfile.noblack.bed
+done
+## Generate DAC files
+
+less Islet12.ALL.totalPeak.TOP32K.noBlack.bed | awk '{print $1,$2,$3,$1"_"$2"_"$3}' OFS="\t" >Islet12.ALL.totalPeak.TOP32K.noBlack.bed.withname
+less ../source | ../GenerateDAC.pl Islet12.ALL.totalPeak.TOP32K.noBlack.bed.withname TOP32K.noBlack  #
+'
+
+  ##endregion
+
+
+
+
+    ##endregion ##region 2020-9-22  Call top 32000 peaks using MACS
+
+  ##region 2020-9-22 2020-10-10 Peak clustering using Top32K peaks
+
+    ##region Generate aggregated RPKM RPKM.7CellTypes (Peak~Celltype)
+ctsfiles<-list.files()[grep("onTotoalPeak.cts.noblack.bed",list.files())]
+TotoalPeak.cts.lst<-list()
+
+for (file in ctsfiles){
+  df<-read.table(file)
+  names(df)<-c("Chr","Start","End","Cts")
+  df$Name<-paste(df$Chr, df$Start, df$End,sep="_")
+  df$rpkm<-1e6*df$Cts/sum(df$Cts)
+  TotoalPeak.cts.lst<-c(TotoalPeak.cts.lst,list(df))
+}
+names(TotoalPeak.cts.lst)<-strsplit(ctsfiles,".",fixed=T) %>% sapply(.,function(x){x[[1]]})
+RPKM.7CellTypes<-data.frame(Name=TotoalPeak.cts.lst[[1]]$Name)
+for(i in 1:length(TotoalPeak.cts.lst)){
+RPKM.7CellTypes<-cbind(RPKM.7CellTypes,TotoalPeak.cts.lst[[i]]$rpkm)
+}
+names(RPKM.7CellTypes)<-c("Name",names(TotoalPeak.cts.lst))
+row.names(RPKM.7CellTypes)<-RPKM.7CellTypes$Name
+RPKM.7CellTypes<-RPKM.7CellTypes[,-1]
+# RPKM.7CellTypes.log<-log(RPKM.7CellTypes)
+# RPKM.7CellTypes.log.dst<-Dist(RPKM.7CellTypes.log,method="correlation")
+##Check RPKM distributions  Looks alright
+melt(RPKM.7CellTypes) %>% ggplot()+aes(variable,value,fill=variable)+geom_violin()+geom_boxplot(width=0.2)+ylim(0,100)
+MAX.cell<-apply(RPKM.7CellTypes,1,function(x){names(RPKM.7CellTypes)[which.max(x)]})
+MIN.cell<-apply(RPKM.7CellTypes,1,function(x){names(RPKM.7CellTypes)[which.min(x)]})
+MAX<-apply(RPKM.7CellTypes,1,max)
+MIN<-apply(RPKM.7CellTypes,1,min)
+RPKM.7CellTypes<-cbind(RPKM.7CellTypes,MAX.cell,MIN.cell,MAX,MIN)
+RPKM.7CellTypes$FC<-RPKM.7CellTypes$MAX/(RPKM.7CellTypes$MIN+1)
+RPKM.7CellTypes$MAX.cell<-as.character(RPKM.7CellTypes$MAX.cell)
+RPKM.7CellTypes$MIN.cell<-as.character(RPKM.7CellTypes$MIN.cell)
+# saveRDS(RPKM.7CellTypes,"mydir/RPKM.7CellTypes")
+RPKM.7CellTypes<-readRDS("mydir/RPKM.7CellTypes")
+  ##endregion Generate aggregated RPKM (Peak~Celltype)
+
+    ##region generate single cell cell~Peak Matrix
+# library(Matrix.utils)
+# Top32K.ALLPeak<-read.table("Islet.scATAC.dac.TOP32K.noBlack")
+# names(Top32K.ALLPeak)<-c("Cell","Peak","Cts")
+# Top32K.ALLPeak$Cts[which(Top32K.ALLPeak$Cts>1)]<-1
+# Top32K.ALLPeak.Mtx<-dMcast(Top32K.ALLPeak,Peak~Cell)
+# colnames(Top32K.ALLPeak.Mtx)<-gsub("Cell","",colnames(Top32K.ALLPeak.Mtx))
+# Top32K.ALLPeak.Mtx<-Top32K.ALLPeak.Mtx[,row.names(Islet.scATAC.metadata)]
+# saveRDS(Top32K.ALLPeak.Mtx,"mydir/Top32K.ALLPeak.Mtx")
+    ##endregion
+
+    ##region 2020-10-10 Peak classification lineage-empeirically based
+    ##region function: L2 and Kcluster
+    L2<-function(x){
+      xL2<-x/sqrt(sum(x^2))
+      return(xL2)
+    }
+
+    Kcluster<-function(df=RPKM.7CellTypes.endo.shared,k=10){
+    test<-apply(df[,1:7],1,L2) %>% t
+    colnames(test)<-colnames(RPKM.7CellTypes)[1:7]
+    test.k<-kmeans(test,k)
+    datatoplot<-data.frame(test,group=test.k$cluster,peaks=row.names(test)) %>% melt(.,id.vars=c("group","peaks"))
+    return(list(data=data.frame(df[,1:7],group=test.k$cluster),datatoplot=datatoplot))
+    }
+    ##endregion function: L2 and Kcluster
+RPKM.7CellTypes<-readRDS("mydir/RPKM.7CellTypes.group")
+RPKM.7CellTypes<-RPKM.7CellTypes[,c("Beta","Delta","Alpha","PP","Duct","Acinar","PSC")]
+RPKM.7CellTypes$EndoMAX<-apply(RPKM.7CellTypes,1,function(x){max(x[1:4])})
+RPKM.7CellTypes$NonMAX<-apply(RPKM.7CellTypes,1,function(x){max(x[5:7])})
+# Make nonendocrine part
+RPKM.7CellTypes.non<-subset(RPKM.7CellTypes,(EndoMAX+1)/(NonMAX+1)<0.5)
+RPKM.7CellTypes.non$NonMIN<-apply(RPKM.7CellTypes.non,1,function(x){min(x[5:7])})
+RPKM.7CellTypes.non.shared<-subset(RPKM.7CellTypes.non,(NonMAX+1)/(NonMIN+1)<2)
+RPKM.7CellTypes.non.spec<-subset(RPKM.7CellTypes.non,(NonMAX+1)/(NonMIN+1)>=2)
+set.seed(1)
+RPKM.7CellTypes.non.spec.kcl<-Kcluster(RPKM.7CellTypes.non.spec,k=5)
+RPKM.7CellTypes.non.spec.kcl[[1]]$group<-mapvalues(RPKM.7CellTypes.non.spec.kcl[[1]]$group,from=c(4,2,3,1,5),to=c("C9","C10","C11","C12","C12"))
+## Make endo part
+RPKM.7CellTypes.endo<-subset(RPKM.7CellTypes,(EndoMAX+1)/(NonMAX+1)>2)
+RPKM.7CellTypes.endo$EndoMIN<-apply(RPKM.7CellTypes.endo,1,function(x){min(x[1:4])})
+RPKM.7CellTypes.endo.shared<-subset(RPKM.7CellTypes.endo,(EndoMAX+1)/(EndoMIN+1)<2)
+RPKM.7CellTypes.endo.spec<-subset(RPKM.7CellTypes.endo,(EndoMAX+1)/(EndoMIN+1)>=2)
+set.seed(1)
+RPKM.7CellTypes.endo.spec.kcl<-Kcluster(RPKM.7CellTypes.endo.spec,k=10)
+RPKM.7CellTypes.endo.spec.kcl[[1]]$group<-mapvalues(RPKM.7CellTypes.endo.spec.kcl[[1]]$group,from=c(2,8,6,7,4,1,3,5,9,10),to=c("C2","C2","C3","C3","C4","C5","C5","C6","C7","C8"))
+RPKM.7CellTypes.endo.spec.kcl[[1]][row.names(subset(RPKM.7CellTypes.endo.spec.kcl[[1]],group=="C6" & Alpha/PP<=1.5)),"group"]<-"C7"
+## Make cross-lineage (Bimod and common) part
+RPKM.7CellTypes.LinShare<-subset(RPKM.7CellTypes,(EndoMAX+1)/(NonMAX+1)>=0.5 & (EndoMAX+1)/(NonMAX+1)<=2)
+RPKM.7CellTypes.LinShare$EndoMIN<-apply(RPKM.7CellTypes.LinShare,1,function(x){min(x[1:4])})
+RPKM.7CellTypes.LinShare$NonMIN<-apply(RPKM.7CellTypes.LinShare,1,function(x){min(x[5:7])})
+RPKM.7CellTypes.bimod<-subset(RPKM.7CellTypes.LinShare,EndoMAX/EndoMIN>2 & NonMAX/NonMIN >2)
+RPKM.7CellTypes.common<-subset(RPKM.7CellTypes.LinShare,EndoMAX/EndoMIN<2 | NonMAX/NonMIN <2)
+set.seed(1)
+RPKM.7CellTypes.bimod.kcl<-Kcluster(RPKM.7CellTypes.bimod,k=16)
+RPKM.7CellTypes.bimod.kcl[[1]]<-subset(RPKM.7CellTypes.bimod.kcl[[1]],!group %in% c(1,3,6))
+RPKM.7CellTypes.bimod.kcl[[1]]$group<-factor(RPKM.7CellTypes.bimod.kcl[[1]]$group,levels=c(4,9,13,12,2,15,16,7,14,8,11,10,5))
+RPKM.7CellTypes.bimod.kcl[[2]]<-subset(RPKM.7CellTypes.bimod.kcl[[2]],!group %in% c(1,3,6))
+RPKM.7CellTypes.bimod.kcl[[2]]$group<-factor(RPKM.7CellTypes.bimod.kcl[[2]]$group,levels=c(4,9,13,12,2,15,16,7,14,8,11,10,5))
+# saveRDS(RPKM.7CellTypes.bimod.kcl,"mydir/RPKM.7CellTypes.bimod.kcl")
+## bind
+RPKM.7CellTypes.LinBased<-rbind(data.frame(RPKM.7CellTypes.endo.shared[,1:7],group="C1"),
+RPKM.7CellTypes.endo.spec.kcl[[1]],
+RPKM.7CellTypes.non.spec.kcl[[1]],
+data.frame(RPKM.7CellTypes.non.shared[,1:7],group="C13"),
+data.frame(RPKM.7CellTypes.common[,1:7],group="Common"),
+data.frame(RPKM.7CellTypes.bimod[,1:7],group="Bimod")
+)
+saveRDS(RPKM.7CellTypes.LinBased,"mydir/RPKM.7CellTypes.LinBased")
+RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+#
+#
+# p1<-ggplot(RPKM.7CellTypes.endo.spec.kcl[[2]])+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limits=c(0,1),oob = scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())
+#
+#
+# p2<-ggplot(RPKM.7CellTypes.non.spec.kcl[[2]])+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limits=c(0,1),oob = scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())
+# # dist(test) ->test.d
+# # test.hc<-hclust(test.d)
+# test.kcl<-Kcluster(RPKM.7CellTypes.common.bimod,k=16)
+# ggplot(test.kcl[[2]])+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limits=c(0,1),oob = scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())
+#
+# ggplot(RPKM.7CellTypes.bimod.kcl[[2]])+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limits=c(0,1),oob = scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())
+
+    ##endregion Peak classification lineage-empeirically based
+
+    ##region 2020-10-10 Plot peak heatmap for diff peaks
+
+      ##region Generate summit windows to get WindowSumits.LR and WindowSumits.expandedALL
+      peakfiles<-list.files()[grep("filteredFinal.32000.bed$",list.files())]
+      TOP32Kbed<-list()
+      for(file in peakfiles){
+        TOP32Kbed<-c(TOP32Kbed,list(read.table(file,header=F)))
+      }
+      names(TOP32Kbed)<-sapply(strsplit(peakfiles,".",fixed="T"),function(x){x[[1]]})
+      xlspeakfiles<-list.files()[grep("filteredFinal_peaks.xls$",list.files())]
+      xlspeak<-list()
+      for(file in xlspeakfiles){
+        xlspeak<-c(xlspeak,list(read.table(file,header=T)))
+      }
+      names(xlspeak)<-sapply(strsplit(xlspeakfiles,".",fixed="T"),function(x){x[[1]]})
+      ALLPeaks.TOP32K<-list()
+      for (CellType in names(xlspeak)){
+        top<-xlspeak[[CellType]] %>% subset(.,name %in% as.character(TOP32Kbed[[CellType]]$V4))
+        ALLPeaks.TOP32K<-c(ALLPeaks.TOP32K,list(top))
+      }
+      names(ALLPeaks.TOP32K)<-names(xlspeak)
+      ALLpeakSumit<-do.call(rbind,ALLPeaks.TOP32K) %>% .[!duplicated(.),] %>% .[order(.$chr,.$abs_summit),]
+      # ALLpeakSumit<-subset(ALLpeakSumit,chr %in% levels(ALLpeakSumit$chr)[grep("random|chrUn",levels(ALLpeakSumit$chr),invert=T)])
+      ## Separate into one list per chromosome
+      ALLpeakSumit.lst<-list()
+      for (chro in unique(ALLpeakSumit$chr)){
+        ALLpeakSumit.lst<-c(ALLpeakSumit.lst,list(subset(ALLpeakSumit,chr==chro)[,c(1,5)]))
+      }
+      names(ALLpeakSumit.lst)<-unique(ALLpeakSumit$chr)
+        ##region function AggregateSummit(ALLpeakSumit)
+      #ALLpeakSumit is a dataframe col1:chr; col2: cummit
+      AggregateSummit<-function(ALLpeakSumit){
+      ALLpeakSumit.new<-c()
+      Last<-ALLpeakSumit[1,]
+      for (i in 2:nrow(ALLpeakSumit)){
+        Cur<-ALLpeakSumit[i,]
+        if(Cur[2]-Last[2]<100 & Cur[1]==Last[1]){
+          Last[2]<-as.integer((as.numeric(Last[2])+as.numeric(Cur[2]))/2)
+        }else{
+          ALLpeakSumit.new<-rbind(ALLpeakSumit.new,Last)
+          Last<-Cur
+        }}
+        ALLpeakSumit.new<-rbind(ALLpeakSumit.new,Last)
+        return(ALLpeakSumit.new)
+      }
+      ##endregion function ALLpeakSumit
+      library(parallel)
+      ALLpeakSumit.aggre.lst<-mclapply(ALLpeakSumit.lst,AggregateSummit,mc.cores =16)
+      # chrom.sizes<-read.table("~/Genome/hg19/hg19.chrom.sizes",row.names=1) # Checked
+      WindowSumits<-data.table::rbindlist(ALLpeakSumit.aggre.lst)
+      WindowSumits.LR<-data.frame(chr=WindowSumits$chr,L=WindowSumits$abs_summit-1500,R=WindowSumits$abs_summit+1500,Window=paste("Window",1:nrow(WindowSumits),sep="_"))
+      # WindowSumits.LR$limit<-chrom.sizes[as.character(WindowSumits.LR$chr),]  # Checked, no problem
+        ##region function Expand
+      Expand<-function(x,Bins=100,window=3000){
+      stepsize<-window/Bins
+      df<- data.frame(Chr=x[1],Start=c(x[2],seq(x[2],x[3],stepsize)[2:(Bins)]+1),end=c(seq(x[2],x[3],stepsize)[2:(Bins)],x[3]),Bin=1:Bins,Window=x[4])
+      return(df)
+      }
+      ##endregion function Expand
+      WindowSumits.expandedALL.lst<-apply(WindowSumits.LR,1,Expand)
+      library(data.table)
+      WindowSumits.expandedALL<-rbindlist(WindowSumits.expandedALL.lst)
+      WindowSumits.expandedALL<-as.data.frame(WindowSumits.expandedALL)
+      WindowSumits.expandedALL$Start<-as.numeric(as.character(WindowSumits.expandedALL$Start))
+      WindowSumits.expandedALL$end<-as.numeric(as.character(WindowSumits.expandedALL$end))
+      ##endregion Generate summit windows  to get WindowSumits.LR and WindowSumits.expandedALL
+
+      ##region Generate bridge between the peaks analyzed and the Window
+      write.table(WindowSumits.LR,"WindowSumits.LR.bed",quote=F,sep="\t",row.names=F,col.names=F)
+      "
+      bedtools intersect -a Islet12.ALL.totalPeak.TOP32K.noBlack.bed.withname -b  WindowSumits.LR.bed -wb -wa  | cut -f1-4,8 > TOP32KPeak.Windows
+      "
+      TOP32KPeak.Windows<-read.table("TOP32KPeak.Windows")
+        ##endregion Generate bridge between the peaks analyzed and the Window
+
+      ##region Count reads from monoclonal files
+      write.table(WindowSumits.expandedALL,"WindowSumits.expandedAL.tb",quote=F,sep="\t",row.names=F,col.names=F)
+      "
+      rm -rf Number
+      for file in `ls | ls | grep filteredFinal.bed`
+      do
+      echo $file
+      name=${file/.SVM.KNN.filteredFinal.bed/}
+      bedtools intersect -a WindowSumits.expandedAL.tb -b  $file -c > $name.WindowMonoclonal.LR.expanded
+      Depth=`wc -l ./$file | cut -f1 -d' '`
+      echo -e "$name\t$Depth" >>Number
+      done
+      "
+      ##endregion Count reads from monoclonal files
+
+      ##region Step4 Read data for ploting
+      RPKM.7CellTypes<-readRDS("mydir/RPKM.7CellTypes.group")
+      RPKM.7CellTypes.Tier12<-readRDS("mydir/RPKM.7CellTypes.Tier12")
+      RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+      RPKM.7CellTypes$group.refine<-RPKM.7CellTypes$group
+      RPKM.7CellTypes$group.refine<-as.character(RPKM.7CellTypes$group.refine)
+      AlphaPP<-subset(RPKM.7CellTypes, group %in% c("PPAlpha","AlphaPP"))
+      RPKM.7CellTypes[row.names(AlphaPP)[AlphaPP$Alpha/AlphaPP$PP>1.5],"group.refine"]<-"Alpha"
+      RPKM.7CellTypes[row.names(AlphaPP)[AlphaPP$Alpha/AlphaPP$PP<=1.5],"group.refine"]<-"AlphaPP"
+      # RPKM.7CellTypes[row.names(AlphaPP)[AlphaPP$Alpha/AlphaPP$PP>=0.66 & AlphaPP$Alpha/AlphaPP$PP<=1.5],"group.refine"]<-"AlphaPP"
+      RPKM.7CellTypes$group.refine<-factor(RPKM.7CellTypes$group.refine,levels=c("Endo","Beta","BetaDelta","Delta","DeltaAlpha","Alpha","AlphaPP","Duct","Acinar","PSC"))
+      # saveRDS(RPKM.7CellTypes,"mydir/RPKM.7CellTypes.group")
+      Numbers<-read.table("Number")
+      Celltype.lst<-list()
+      for(celltype in c("Beta","Delta","Alpha","PP","Duct","Acinar","PSC")){
+        file<-paste(celltype,".WindowMonoclonal.LR.expanded",sep="")
+        tmp<-read.table(file)
+        tmp$RPKM<-1e6*tmp$V6/Numbers[Numbers$V1==celltype,2]
+        Celltype.lst<-c(Celltype.lst,list(tmp))
+      }
+      names(Celltype.lst)<-c("Beta","Delta","Alpha","PP","Duct","Acinar","PSC")
+      TOP32KPeak.Windows<-read.table("TOP32KPeak.Windows")
+
+        ##region plot Tier1 (Old)
+      TOP32KPeak.Windows.specific<-merge(TOP32KPeak.Windows,RPKM.7CellTypes[!is.na(RPKM.7CellTypes$group.refine),"group.refine",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+
+      for (celltype in names(Celltype.lst)){
+        datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.specific[,c("V5","group.refine")],by="V5")
+        png(paste(celltype,"CellType.Heat.light.png",sep="."),height=6000,width=500,res=300)
+        p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,15),oob = scales::squish)+facet_grid(group.refine~.,space="free",scales="free")+theme_bw()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.border=element_rect(size=1.2))
+        print(p)
+        dev.off()
+      }
+      ## Produce short version
+      for (celltype in names(Celltype.lst)){
+        datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.specific[,c("V5","group.refine")],by="V5")
+        png(paste(celltype,"CellType.Heat.light.short.png",sep="."),height=378,width=500,res=300)
+        p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,15),oob = scales::squish)+facet_grid(group.refine~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+        print(p)
+        dev.off()
+      }
+        ##endregion plot Tier1
+
+        ##region plot Tier2 (Old)
+        TOP32KPeak.Windows.specific.T2<-merge(TOP32KPeak.Windows,RPKM.7CellTypes.Tier12$Tier2[,"group.refine",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.specific.T2[,c("V5","group.refine")],by="V5")
+          png(paste(celltype,"CellType.Heat.T2.png",sep="."),height=6000,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group.refine~.,space="free",scales="free")+theme_bw()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.border=element_rect(size=1.2))
+          print(p)
+          dev.off()
+        }
+        ## Short version
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.specific.T2[,c("V5","group")],by="V5")
+          png(paste(celltype,"CellType.Heat.T2.short.png",sep="."),height=1360,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+          print(p)
+          dev.off()
+        }
+        ##endregion
+
+        ##region plot Common (OLd)
+        TOP32KPeak.Windows.Common<-merge(TOP32KPeak.Windows,RPKM.7CellTypes.Tier12$Common[,"group.refine",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        ## Produce short version
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.Common[,c("V5","group.refine")],by="V5")
+          png(paste(celltype,"CellType.Heat.Common.short.png",sep="."),height=378,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="blue",limits=c(0,15),oob = scales::squish)+facet_grid(group.refine~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+          print(p)
+          dev.off()
+        }
+
+      ##endregion Step4 Read data for ploting
+
+        ##region plot Lineage-Based
+        RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+        TOP32KPeak.Windows<-read.table("TOP32KPeak.Windows")
+        RPKM.7CellTypes.LinBased.Unimod.spec<-subset(RPKM.7CellTypes.LinBased,!group %in% c("Bimod","Common"))
+        RPKM.7CellTypes.LinBased.Unimod.spec$group<-factor(RPKM.7CellTypes.LinBased.Unimod.spec$group, levels=c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13"))
+
+        TOP32KPeak.Windows.LinBased.unimod.spec<-merge(TOP32KPeak.Windows,  RPKM.7CellTypes.LinBased.Unimod.spec[,"group",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+          ##region Produce endo-spec and nonendospecific --long
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.LinBased.unimod.spec[,c("V5","group")],by="V5")
+          png(paste(celltype,"CellType.Heat.Lin.Spec.png",sep="."),height=6000,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_bw()+theme(axis.text=element_blank(),axis.title=element_blank(),axis.ticks=element_blank(),strip.background = element_blank(),panel.border=element_rect(size=1.2),legend.position="none",strip.text=element_blank())
+          print(p)
+          dev.off()
+        }
+          ##endregion
+          ##region produce  bimodel --long
+        TOP32KPeak.Windows.LinBased.bimod<-merge(TOP32KPeak.Windows, RPKM.7CellTypes.bimod.kcl[[1]][,"group",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.LinBased.bimod[,c("V5","group")],by="V5")
+          png(paste(celltype,"CellType.Heat.Lin.Bimod.png",sep="."),height=6000,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_bw()+theme(axis.text=element_blank(),axis.title=element_blank(),axis.ticks=element_blank(),strip.background = element_blank(),panel.border=element_rect(size=1.2),legend.position="none",strip.text=element_blank())
+          print(p)
+          dev.off()
+        }
+          ##endregion produce  bimodel --long
+          ##region Produce Common --short
+        RPKM.7CellTypes.LinBased.common<-subset(RPKM.7CellTypes.LinBased,group %in% c("Common"))
+        # RPKM.7CellTypes.LinBased.common<-RPKM.7CellTypes.LinBased.common[,1:7] %>% .[order(rowMeans(.),decreasing=T),]
+        #  %>% cbind(.,group="Common")
+        TOP32KPeak.Windows.LinBased.common<-merge(TOP32KPeak.Windows,RPKM.7CellTypes.LinBased.common[,"group",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        # TOP32KPeak.Windows.LinBased.common$V4<-factor(TOP32KPeak.Windows.LinBased.common$V4,levels=row.names(RPKM.7CellTypes.LinBased.common))
+        names(TOP32KPeak.Windows.LinBased.common)[1]<-"peaks"
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.LinBased.common[,c("peaks","V5","group")],by="V5")
+          # datatoplot<-datatoplot[order(datatoplot$peaks,decreasing=T),]
+          # datatoplot$V5<-factor(datatoplot$V5,levels=unique(datatoplot$V5))
+          png(paste(celltype,"CellType.Heat.Lin.common.short4.png",sep="."),height=805,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="blue",limits=c(0,4),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+          print(p)
+          dev.off()
+        }
+          ##endregion Produce Common --short
+          ##region Produce endo-spec --short
+        RPKM.7CellTypes.LinBased.Unimod.Endo<-subset(RPKM.7CellTypes.LinBased,group %in% c("C1","C2","C3","C4","C5","C6","C7","C8"))
+        RPKM.7CellTypes.LinBased.Unimod.Endo$group<-factor(RPKM.7CellTypes.LinBased.Unimod.Endo$group, levels=c("C1","C2","C3","C4","C5","C6","C7","C8"))
+        TOP32KPeak.Windows.LinBased.Unimod.Endo<-merge(TOP32KPeak.Windows,  RPKM.7CellTypes.LinBased.Unimod.Endo[,"group",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.LinBased.Unimod.Endo[,c("V5","group")],by="V5")
+          png(paste(celltype,"CellType.Heat.Lin.Endo.short.png",sep="."),height=314,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+          print(p)
+          dev.off()
+        }
+          ##endregion Produce endo-spec --short
+          ##region Produce  nonendospecific --short
+        RPKM.7CellTypes.LinBased.Unimod.Non<-subset(RPKM.7CellTypes.LinBased,group %in% c("C9","C10","C11","C12","C13"))
+        RPKM.7CellTypes.LinBased.Unimod.Non$group<-factor(RPKM.7CellTypes.LinBased.Unimod.Non$group, levels=c("C9","C10","C11","C12","C13"))
+        TOP32KPeak.Windows.LinBased.Unimod.Non<-merge(TOP32KPeak.Windows,  RPKM.7CellTypes.LinBased.Unimod.Non[,"group",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.LinBased.Unimod.Non[,c("V5","group")],by="V5")
+          png(paste(celltype,"CellType.Heat.Lin.Non.short.png",sep="."),height=678,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+          print(p)
+          dev.off()
+        }
+          ##endregion Produce  nonendospecific --short
+          ##region Produce bimod  --short
+        TOP32KPeak.Windows.LinBased.bimod<-merge(TOP32KPeak.Windows, RPKM.7CellTypes.bimod.kcl[[1]][,"group",drop=F] %>% cbind(.,peak=row.names(.)),by.x="V4",by.y="peak")
+        for (celltype in names(Celltype.lst)){
+          datatoplot<-merge(Celltype.lst[[celltype]],TOP32KPeak.Windows.LinBased.bimod[,c("V5","group")],by="V5")
+          png(paste(celltype,"CellType.Heat.Lin.Bimod.short.png",sep="."),height=436,width=500,res=300)
+          p<-ggplot(datatoplot)+aes(V4,V5,fill=RPKM)+geom_tile()+scale_fill_gradient(low="white",high="red",limits=c(0,10),oob = scales::squish)+facet_grid(group~.,space="free",scales="free")+theme_void()+theme(axis.text=element_blank(),axis.title=element_blank(),legend.position="none",axis.ticks=element_blank(),strip.background = element_blank(),strip.text = element_blank(),panel.spacing = unit(0,"lines"))
+          print(p)
+          dev.off()
+        }
+          ##endregion Produce bimod  --Short
+        ##endregion plot Lineage-Based
+
+      ##endregion Step4 Read data for ploting
+
+    ##endregion 2020-10-10 Plot peak heatmap for diff peaks
+
+  ##endregion Peak clustering using Top32K peaks
+
+
+  ##region 2020-10-10 Annotate all peaks with Promoter/Intergenic/Intron.../
+    "annotatePeaks.pl  Islet12.ALL.totalPeak.TOP32K.noBlack.bed hg19 > Islet12.ALL.totalPeak.TOP32K.noBlack.bed.annotated"
+      RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+      RPKM.7CellTypes.LinBased$group.2<-mapvalues(RPKM.7CellTypes.LinBased$group,from=c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","Common","Bimod"),to=c(rep("Endo",8),rep("Non",5),"Common","Bimod"))
+      Peakannotation.all<-read.delim("Islet12.ALL.totalPeak.TOP32K.noBlack.bed.annotated")
+      row.names(Peakannotation.all)<-paste(Peakannotation.all[,"Chr"],(Peakannotation.all[,"Start"]-1),Peakannotation.all[,"End"],sep="_")
+      Peakannotation.all<-Peakannotation.all[,c("Annotation","Distance.to.TSS","Gene.Name")]
+      Peakannotation.all$Region<-strsplit(as.character(Peakannotation.all$Annotation)," ") %>% lapply(.,function(x){x[1]}) %>% unlist()
+      # saveRDS(Peakannotation.all,"mydir/Peakannotation.all")
+     Peakannotation.all.Lin<-Tomerge_v2(Peakannotation.all,RPKM.7CellTypes.LinBased[,"group.2",drop=F],leavex=F)
+     Peakannotation.prop.m<-table(Peakannotation.all.Lin$Region,Peakannotation.all.Lin$group.2) %>% as.matrix() %>% apply(.,2,function(x){x/sum(x)}) %>% melt
+     Peakannotation.prop.m$Var2<-factor(Peakannotation.prop.m$Var2,levels=c("Common","Endo","Non","Bimod"))
+     Peakannotation.prop.m$Var1<-factor(Peakannotation.prop.m$Var1,levels=c("promoter-TSS","5'","exon","3'","TTS","non-coding","intron","Intergenic"))
+     pdf("PeakAnnotation.percent.pdf",width=14)
+     ggplot(Peakannotation.prop.m)+aes(Var1,value,fill=Var2)+geom_bar(stat="identity",position="dodge",color="black")+scale_fill_brewer(palette="Set2")+theme_classic()
+     dev.off()
+     ##Fisher's exact test
+
+  ##endregion 2020-10-10 Annotate all peaks with regard to the Promoter/Intergenic/Intron.../
+
+  ##region Specific peaks VS RNA expression
+
+    ##region make aggregated RNAexpression for each cell type
+      Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+      alpha<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="Alpha"))] %>% as.matrix %>% rowSums
+      beta<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="Beta"))] %>% as.matrix %>% rowSums
+      delta<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="Delta"))] %>% as.matrix %>% rowSums
+      pp<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="PP"))] %>% as.matrix %>% rowSums
+      duct<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="Duct"))] %>% as.matrix %>% rowSums
+      acinar<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="Acinar"))] %>% as.matrix %>% rowSums
+      psc<-Islet12.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(subset(Islet12.scRNA.seurat3.filtered@meta.data,Cell_type=="PSC"))] %>% as.matrix %>% rowSums
+      Aggregate.7celltype.RNA.cts<-data.frame(beta,delta,alpha,pp,duct,acinar,psc)
+      Aggregate.7celltype.RNA.rpkm<-apply(Aggregate.7celltype.RNA.cts,2,function(x){1e6*x/sum(x)})
+      # saveRDS(Aggregate.7celltype.RNA.cts,"mydir/Aggregate.7celltype.RNA.cts")
+      # saveRDS(Aggregate.7celltype.RNA.rpkm,"mydir/Aggregate.7celltype.RNA.rpkm")
+      Aggregate.7celltype.RNA.cts<-readRDS("mydir/Aggregate.7celltype.RNA.cts")
+      Aggregate.7celltype.RNA.rpkm<-readRDS("mydir/Aggregate.7celltype.RNA.rpkm")
+        ##endregion make aggregated RNAexpression for each cell type
+
+    ##region 2020-10-12 Compare Peaks VS Expression
+      RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+      RPKM.7CellTypes.LinBased$group.2<-mapvalues(RPKM.7CellTypes.LinBased$group,from=c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","Common","Bimod"),to=c(rep("Endo",8),rep("Non",5),"Common","Bimod"))
+      # saveRDS(RPKM.7CellTypes.LinBased,"mydir/RPKM.7CellTypes.LinBased.group2")
+      RPKM.7CellTypes.bimod.kcl<-readRDS("mydir/RPKM.7CellTypes.bimod.kcl")
+      Peakannotation.all.Lin<-Tomerge_v2(Peakannotation.all,RPKM.7CellTypes.LinBased[,"group.2",drop=F],leavex=F)
+      RPKM.7CellTypes.bimod.kcl[[1]]$group<-mapvalues(RPKM.7CellTypes.bimod.kcl[[1]]$group,from=c(4,9,13,12,2,15,16,7,14,8,11,10,5),to=c("Un_C1","Un_C2","Un_C3","Un_C4","Un_C5","Un_C6","Un_C7","Un_C8","Un_C9","Un_C10","Un_C11","Un_C12","Un_C13"))
+      Bimod<-subset(RPKM.7CellTypes.LinBased,group.2=="Bimod")
+      Bimod$group<-RPKM.7CellTypes.bimod.kcl[[1]][row.names(Bimod),"group"]
+      Bimod<-subset(Bimod,!is.na(Bimod$group))
+      RPKM.7CellTypes.LinBased<-rbind(subset(RPKM.7CellTypes.LinBased,group!="Bimod"),Bimod)
+      Peakannotation.all<-readRDS("mydir/Peakannotation.all")
+      Peakannotation.all$peaks<-row.names(Peakannotation.all)
+      Aggregate.7celltype.RNA.rpkm<-readRDS("mydir/Aggregate.7celltype.RNA.rpkm")
+      Aggregate.7celltype.RNA.rpkm<-as.data.frame(Aggregate.7celltype.RNA.rpkm) %>% cbind(.,gene=row.names(.))
+      Peakannotation.all.expr<-merge(Peakannotation.all,Aggregate.7celltype.RNA.rpkm,by.x="Gene.Name",by.y="gene",all.x=T)
+      row.names(Peakannotation.all.expr)<-Peakannotation.all.expr$peaks
+      PeakVSRNA.all<-Tomerge_v2(RPKM.7CellTypes.LinBased,Peakannotation.all.expr)
+      PeakVSRNA.all.complete<-PeakVSRNA.all[complete.cases(PeakVSRNA.all),]
+      PeakVSRNA.all.complete$PearsonR<-PeakVSRNA.all.complete[,c(1:7,15:21)] %>% as.matrix %>% apply(.,1,function(x){cor(x[1:7],x[8:14])})
+
+      ## Plot boxplot of pearson's r
+      pk.random<-PeakVSRNA.all.complete[sample(1:nrow(PeakVSRNA.all.complete),nrow(PeakVSRNA.all.complete)),1:7]
+      expr.random<-PeakVSRNA.all.complete[sample(1:nrow(PeakVSRNA.all.complete),nrow(PeakVSRNA.all.complete)),15:21]
+      PeakVSRNA.all.complete$PearsonRRandom<-cbind(pk.random,expr.random) %>% apply(.,1,function(x){cor(x[1:7],x[8:14])})
+      PeakVSRNA.all.complete$Region<-factor(PeakVSRNA.all.complete$Region,levels=c("promoter-TSS","5'","exon","3'","TTS","non-coding","intron","Intergenic"))
+      pdf("PearsonR.box.pdf",width=12)
+      subset(PeakVSRNA.all.complete,group.2!="Common") %>% ggplot(.)+aes(group.2,PearsonR,fill=group.2)+geom_boxplot()+facet_grid(~Region)+scale_fill_manual(values=brewer.pal(8,"Set2")[2:4])+theme_bw()+theme(panel.grid=element_blank())
+      subset(PeakVSRNA.all.complete,group.2!="Common") %>% ggplot(.)+aes(group.2,PearsonRRandom,fill=group.2)+geom_boxplot()
+      dev.off()
+      ##Plot expression heatmaps
+      Endo.Non.RNA.m<-subset(PeakVSRNA.all.complete,group.2 %in% c("Endo","Non")) %>% .[,c("group","Region","beta","delta","alpha","pp","duct","acinar","psc")] %>% cbind(.,peaks=row.names(.)) %>% melt(.,id.vars=c("group","Region","peaks"))
+      Endo.Non.RNA.m<-PeakVSRNA.all.complete[,15:21] %>% apply(.,1,function(x){(x-mean(x))/sd(x)}) %>% t %>% cbind(PeakVSRNA.all.complete[,c("group","group.2","Region")],.) %>% subset(.,group.2 %in% c("Endo","Non")) %>% cbind(.,peaks=row.names(.)) %>% melt(.,id.vars=c("group","group.2","Region","peaks"))
+      Endo.Non.RNA.m$group<-factor(Endo.Non.RNA.m$group,levels=c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13"))
+      pdf("SpecificPeakVSExpr.pdf")
+      subset(Endo.Non.RNA.m,Region %in% c("promoter-TSS","5'")) %>% ggplot(.)+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limit=c(-2,2),oob=scales::squish)+facet_grid(group~.,scales="free",space="free")+theme_void()+theme(axis.text=element_blank())
+      dev.off()
+      Un.RNA.m<-subset(PeakVSRNA.all.complete,group.2=="Bimod") %>% .[,c("group","Region","beta","delta","alpha","pp","duct","acinar","psc")] %>% cbind(.,peaks=row.names(.)) %>% melt(.,id.vars=c("group","Region","peaks"))
+      Un.RNA.m<-PeakVSRNA.all.complete[,15:21] %>% apply(.,1,function(x){(x-mean(x))/sd(x)}) %>% t %>% cbind(PeakVSRNA.all.complete[,c("group","group.2","Region")],.) %>% subset(.,group.2=="Bimod") %>% cbind(.,peaks=row.names(.)) %>% melt(.,id.vars=c("group","group.2","Region","peaks"))
+      pdf("Uncertain.PeakVSExpr.pdf")
+      subset(Un.RNA.m,Region %in% c("promoter-TSS","5'")) %>% ggplot(.)+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limit=c(-2,2),oob=scales::squish)+facet_grid(group~.,scales="free",space="free")+theme_void()+theme(axis.text=element_blank())
+      dev.off()
+##endregion 2020-10-12 Compare Peaks VS Expression
+
+    ##region Enhancer-gene link(by correlation)
+        RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+        ## extend the peak into 1Mb window and write out overlap with gene location bed
+        RPKM.7CellTypes.LinBased.1Mbwindow.bed<-PeakName2Bed(row.names(RPKM.7CellTypes.LinBased))
+        RPKM.7CellTypes.LinBased.1Mbwindow.bed$Peak.L<-RPKM.7CellTypes.LinBased.1Mbwindow.bed$V2
+        RPKM.7CellTypes.LinBased.1Mbwindow.bed$Peak.R<-RPKM.7CellTypes.LinBased.1Mbwindow.bed$V3
+        RPKM.7CellTypes.LinBased.1Mbwindow.bed$V2<-RPKM.7CellTypes.LinBased.1Mbwindow.bed$V2-500000
+        RPKM.7CellTypes.LinBased.1Mbwindow.bed$V3<-RPKM.7CellTypes.LinBased.1Mbwindow.bed$V3+500000
+        RPKM.7CellTypes.LinBased.1Mbwindow.bed$V2[which(RPKM.7CellTypes.LinBased.1Mbwindow.bed$V2<=0)]<-1
+        Window2Peak.dic<-data.frame(row.names=paste(RPKM.7CellTypes.LinBased.1Mbwindow.bed$V1,RPKM.7CellTypes.LinBased.1Mbwindow.bed$V2,RPKM.7CellTypes.LinBased.1Mbwindow.bed$V3,sep="_"),peak=paste(RPKM.7CellTypes.LinBased.1Mbwindow.bed$V1,RPKM.7CellTypes.LinBased.1Mbwindow.bed$Peak.L,RPKM.7CellTypes.LinBased.1Mbwindow.bed$Peak.R,sep="_"))
+        Window2Peak.dic$peak<-as.character(Window2Peak.dic$peak)
+        write.table(RPKM.7CellTypes.LinBased.1Mbwindow.bed,"RPKM.7CellTypes.LinBased.1Mbwindow.bed",sep="\t",quote=F,col.names=F,row.names=F)
+        "
+        bedtools intersect -a RPKM.7CellTypes.LinBased.1Mbwindow.bed -b ~/Genome/hg19/hg19.refFlat.TSS.bed -wa -wb | cut -f1-3,7 | awk '{split($4,a,"_"); print $1,$2,$3,$1"_"$2"_"$3"__"a[1]}' | sort -uk4,4 | sort -k1,1 -k2,2n > RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed
+        bedtools intersect -a RPKM.7CellTypes.LinBased.1Mbwindow.bed -b ~/Genome/hg19/hg19.refFlat.TSS.bed -wa -wb | cut -f1-3,5,7 | awk '{split($5,a,"_");print $1,$2,$3,$4,a[1]}' OFS="\t" > Window.TSS.dic
+        "
+        Window.TSS.dic<-read.table("Window.TSS.dic")
+        Window.TSS.dic$windows<-paste(Window.TSS.dic$V1,Window.TSS.dic$V2,Window.TSS.dic$V3,sep="_")
+        Window.TSS.dic.list<-list()
+        for(window in unique(Window.TSS.dic$windows)){
+          tmp<-subset(Window.TSS.dic,windows==window)
+          Window.TSS.dic.list<-c(Window.TSS.dic.list,list(tmp))
+        }
+        names(Window.TSS.dic.list)<-unique(Window.TSS.dic$windows)
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed<-read.table("RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed")
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$windows<-strsplit(as.character(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$V4),"__") %>% sapply(.,function(x){x[1]})
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$genes<-strsplit(as.character(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$V4),"__") %>% sapply(.,function(x){x[2]})
+        ##Read in RNA aggregated expresion and calculate pearson's r
+        Aggregate.7celltype.RNA.rpkm<-readRDS("mydir/Aggregate.7celltype.RNA.rpkm")
+        Aggregate.7celltype.RNA.rpkm<-as.data.frame(Aggregate.7celltype.RNA.rpkm) %>% cbind(.,gene=row.names(.))
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed,genes %in% row.names(Aggregate.7celltype.RNA.rpkm))
+        library(doParallel)
+        cl <- makeCluster(12)
+        doParallel::registerDoParallel(cl)
+        pearsonR<-foreach(i=1:nrow(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed)) %dopar%
+        {
+          correlation<-cor(as.numeric(RPKM.7CellTypes.LinBased[Window2Peak.dic[RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed[i,"windows"],],1:7]),as.numeric(Aggregate.7celltype.RNA.rpkm[RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed[i,"genes"],1:7]))
+          names(correlation)<-as.character(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed[i,"V4"])
+          return(correlation)
+        }
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$cor<-unlist(pearsonR)
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$peaks<-Window2Peak.dic[RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$windows,]
+        # saveRDS(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed,"mydir/RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed")
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed<-readRDS("mydir/RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed")
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed,cor>0.7)
+        ##Output a bed-like interact file with all links(correlation -1 to 1)
+        # saveRDS(genepos.lst,"mydir/genepos.lst")
+        TSS.chr<-sapply(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$gene,function(x){genepos.lst$chrs[[x]]})
+        TSS.pos<-sapply(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$gene,function(x){as.integer(genepos.lst$medianTSSs[[x]])})
+        peak.df<-strsplit(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$peaks,"_") %>% do.call(rbind,.) %>% as.data.frame()
+        names(peak.df)<-c("Peak.chr","Peak.start","Peak.end")
+        peak.df$Peak.start<-as.numeric(as.character(peak.df$Peak.start))
+        peak.df$Peak.end<-as.numeric(as.character(peak.df$Peak.end))
+        AllPossibleTSSPeaklink.bed<-data.frame(TSS.chr=TSS.chr,TSS.start=TSS.pos-1,TSS.end=TSS.pos,TSS.name=RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$gene,peak.df,peakName=RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed$peaks)
+        write.table(AllPossibleTSSPeaklink.bed,"AllPossibleTSSPeaklink.bed",sep="\t",quote=F,col.names=F,row.names=F)
+        data<-readRDS("AllPossibleTSSPeaklink.islet.alpha.beta.RDS")
+        AllPossibleTSSPeaklink_HiC<-cbind(data,RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed[,"cor",drop=F])
+
+        ##region Prepare for correlation-based pair UCSC track
+        genepos<-read.table("~/Genome/hg19/hg19.refFlat.TSS")
+        genenames<-list()
+        medianTSSs<-list()
+        chrs<-c()
+        for(gene in unique(genepos$V1)){
+          print(gene)
+          tmp<-subset(genepos,V1==gene)
+          if(length(unique(tmp$V3))>1){
+            next
+          }
+          chrs<-c(chrs,list(as.character(unique(tmp$V3))))
+          medianTSSs<-c(medianTSSs,list(median(tmp$V5)))
+          genenames<-c(genenames,gene)
+        }
+        names(medianTSSs)<-genenames
+        names(chrs)<-genenames
+        genepos.lst<-list(chrs=chrs,medianTSSs=medianTSSs)
+        # saveRDS(genepos.lst,"mydir/genepos.lst")
+        genepos.lst<-readRDS("mydir/genepos.lst")
+        chr<-RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$V1
+        Peakstart<-strsplit(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$peaks,"_") %>% sapply(.,function(x){as.numeric(x[2])}) %>% as.integer
+        Peakend<-strsplit(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$peaks,"_") %>% sapply(.,function(x){as.numeric(x[3])})  %>% as.integer
+        PeakName<-RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$peaks
+        GeneName<-RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$genes
+        GeneTSS.end<-unlist(lapply(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$genes,function(x){medianTSSs[[x]]})) %>% as.integer
+        GeneTSS.start<-GeneTSS.end-1
+        Lower.start<-c()
+        Lower.end<-c()
+        Upper.start<-c()
+        Upper.end<-c()
+        Lower.name<-c()
+        Upper.name<-c()
+        for(i in 1:63326){
+          print(i)
+          if(Peakstart[i]<GeneTSS.start[i]){
+            Lower.start<-c(Lower.start,Peakstart[i])
+            Lower.end<-c(Lower.end,Peakend[i])
+            Upper.start<-c(Upper.start,GeneTSS.start[i])
+            Upper.end<-c(Upper.end,GeneTSS.end[i])
+            Lower.name<-c(Lower.name,PeakName[i])
+            Upper.name<-c(Upper.name,GeneName[i])
+          }else{
+            Lower.start<-c(Lower.start,GeneTSS.start[i])
+            Lower.end<-c(Lower.end,GeneTSS.end[i])
+            Upper.start<-c(Upper.start,Peakstart[i])
+            Upper.end<-c(Upper.end,Peakend[i])
+            Lower.name<-c(Lower.name,GeneName[i])
+            Upper.name<-c(Upper.name,PeakName[i])
+          }
+        }
+        UCSCtrack.link.0.7.bed<-data.frame(chr,all.start=Lower.start,all.end=Upper.end,Name=RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$V4,score=as.integer(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$cor*1000),doublevalue=0,exp=".",color="0,0,0",chr,Lower.start,Lower.end,Lower.name,Lower.string=".",chr,Upper.start,Upper.end,Upper.name,Upper.string=".")
+        setwd("/mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/IsletscATAC/Islet12.F.track")
+        write.table(UCSCtrack.link.0.7.bed,"UCSCtrack.link.0.7.bed",sep="\t",quote=F,col.names=F,row.names=F)
+        ##endregion Prepare for correlation-based pair UCSC track
+
+        ##region Summary the distance of the highly correlated pairs
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$peakSumit<-strsplit(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7$peaks,"_") %>% sapply(.,function(x){(as.numeric(x[2])+as.numeric(x[3]))/2}) %>% as.integer
+        Link.details<-foreach(i=1:nrow(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7)) %dopar%
+        {
+          tmp<-Window.TSS.dic.list[[RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7[i,"windows"]]]
+          tmp$distance<-abs(tmp$V4-RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7[i,"peakSumit"])
+          tmp<-tmp[order(tmp$distance),]
+          closestG<-as.character(tmp[1,"V5"])
+          closestD<-as.character(tmp[1,"distance"])
+          curG.rank<-which(tmp$V5==RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7[i,"genes"])[1]
+          curG.D<-tmp[curG.rank,"distance"]
+          c(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7[i,"peaks"],closestD,closestG,RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7[i,"genes"],RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7[i,"cor"],curG.rank,curG.D)
+        }
+        Link.details.df<-do.call(rbind,Link.details) %>% as.data.frame
+        Link.details.df$V2<-as.numeric(as.character(Link.details.df$V2))
+        Link.details.df$V5<-as.numeric(as.character(Link.details.df$V5))
+        Link.details.df$V6<-as.numeric(as.character(Link.details.df$V6))
+        Link.details.df$V7<-as.numeric(as.character(Link.details.df$V7))
+        # saveRDS(Link.details.df,"mydir/Link.details.df")
+        Link.details.df<-readRDS("mydir/Link.details.df")
+        Link.details.df.variable<-subset(Link.details.df,V1 %in% row.names(subset(RPKM.7CellTypes.LinBased,group!="Common")))
+        ##endregion Summary the distance of the highly correlated pairs
+
+        ##region Discuss the variable genes (Starting from TSS)
+        Endocrine.genes<-readRDS("mydir/Endocrine.genes")
+        NonEndocrine.genes<-readRDS("mydir/NonEndocrine.genes")
+        variables.link<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.7,genes %in% c(Endocrine.genes,NonEndocrine.genes))
+        variables.link$genes<-factor(variables.link$genes,levels=c(Endocrine.genes,NonEndocrine.genes))
+        variables.link.annotated<-Peakannotation.all[variables.link$peaks,c("Gene.Name","Region")] %>% cbind(variables.link,.)
+        ##plot the histogram
+
+        Peakannotation.all<-readRDS("mydir/Peakannotation.all")
+        TSS.linkPeakToplot1<-table(variables.link$genes) %>% as.data.frame %>% merge(.,rbind(data.frame(gene=Endocrine.genes,cat="Endo"),data.frame(gene=NonEndocrine.genes,cat="Non")),by.x="Var1",by.y="gene")
+        variableGene.TSS<-subset(variables.link.annotated, as.character(genes)==as.character(Gene.Name) & Region %in% c("promoter-TSS","5'")) %>% .[order(.$cor,decreasing=T),] %>% .$gene %>% unique
+        TSS.linkPeakToplot1$annotation<-ifelse(TSS.linkPeakToplot1$Var1 %in% variableGene.TSS, "Promoter-TSS", "Other")
+
+        p1<-ggplot(TSS.linkPeakToplot1)+aes(Freq,fill=annotation)+geom_histogram(binwidth=1,color="black")+theme_classic()+scale_fill_brewer(palette="Set3")+xlim(-1,25)
+        ##Compute random cor for variable TSSs
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.variable<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed,genes %in% c(Endocrine.genes,NonEndocrine.genes))
+        random1<-data.frame(genes=RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.variable$genes,peaks=sample(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.variable$peaks))
+        library(doParallel)
+        cl <- makeCluster(12)
+        doParallel::registerDoParallel(cl)
+        pearsonR<-foreach(i=1:nrow(random1)) %dopar%
+        {
+        cor(as.numeric(RPKM.7CellTypes.LinBased[random1[i,"peaks"],1:7]),as.numeric(Aggregate.7celltype.RNA.rpkm[random1[i,"genes"],1:7]))
+        }
+        random1$cor<-unlist(pearsonR)
+        random1.df<-subset(random1,cor>0.7) %>% .$genes %>% table %>% as.data.frame
+        p2<-ggplot(random1.df)+aes(Freq)+geom_density()+xlim(-1,25)
+
+        ##Plot for link distances
+        genepos.lst<-readRDS("mydir/genepos.lst")
+        variables.link.annotated$geneTSS<-as.integer(unlist(genepos.lst$medianTSSs[as.character(variables.link.annotated$genes)]))
+        variables.link.annotated$peaksummit<-strsplit(variables.link.annotated$peaks,"_") %>% sapply(.,function(x){(as.numeric(x[3])+as.numeric(x[2]))/2}) %>% as.integer
+        variables.link.annotated$distance<-with(variables.link.annotated,abs(geneTSS-peaksummit))
+        variables.link.annotated$effect<-with(variables.link.annotated,ifelse(as.character(genes)==as.character(Gene.Name) & Region %in% c("promoter-TSS","5'"),"Promoter-TSS","Other"))
+        p3<-ggplot(variables.link.annotated)+aes(log10(distance))+geom_histogram(binwidth=0.05,fill="white",color="black")
+        pdf("PeakGene.linkbycor.pdf",width=10)
+        print(p1)
+        print(p2)
+        print(p3)
+        dev.off()
+        ##region Discuss the variable peaks (Starting from peaks)
+        RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.5<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed,cor>=0.5)
+        Variable.peaks<-subset(RPKM.7CellTypes.LinBased,group!="Common")[,8,drop=F] %>% data.frame(peaks=row.names(.))
+        Variable.peaks$group<-mapvalues(Variable.peaks$group,from=c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","Bimod"),to=c(rep("Endo",8),rep("Non",5),"Bimod"))
+
+        Peak.variables.link<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed.0.5,peaks %in% as.character(Variable.peaks$peaks))
+        Peak.variables.link$peaks<-factor(Peak.variables.link$peaks,levels=as.character(Variable.peaks$peaks))
+        ##plot the histogram
+        table(Peak.variables.link$peaks) %>% as.data.frame %>% merge(.,Variable.peaks,by.x="Var1",by.y="peaks") %>% ggplot(.)+aes(Freq,fill=group)+geom_histogram(binwidth=1,color="black")+theme_classic()
+        ##Compute random cor for variable Peaks
+        RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.variablePeaks<-subset(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.bed,peaks %in% row.names(Variable.peaks))
+        Peak.random1<-data.frame(peaks=RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.variablePeaks$peaks,genes=sample(RPKM.7CellTypes.LinBased.1Mbwindow.Gene.link.variablePeaks$genes))
+        library(doParallel)
+        cl <- makeCluster(12)
+        doParallel::registerDoParallel(cl)
+        pearsonR<-foreach(i=1:nrow(Peak.random1)) %dopar%
+        {
+        cor(as.numeric(RPKM.7CellTypes.LinBased[Peak.random1[i,"peaks"],1:7]),as.numeric(Aggregate.7celltype.RNA.rpkm[Peak.random1[i,"genes"],1:7]))
+        }
+        Peak.random1$cor<-unlist(pearsonR)
+
+        subset(Peak.random1,cor>0.5) %>% .$peaks %>% table %>% as.data.frame() %>% ggplot()+aes(Freq)+geom_histogram(binwidth=1)
+
+  ##endregion Specific peaks VS RNA expression
+
+    ##region Specific peaks VS DNA binding motif
+
+    ##region X Generate length and GC matched random bed (random background is too sensitive)
+'bedtools nuc -fi ~/Genome/hg19/hg19.fa -bed Islet12.ALL.totalPeak.TOP32K.noBlack.bed | cut -f1-3,5 > Islet12.ALL.totalPeak.TOP32K.noBlack.bed.GCcontent
+for i in {1..10}
+do
+bedtools shuffle -i Islet12.ALL.totalPeak.TOP32K.noBlack.bed -g ~/Genome/hg19/hg19.chrom.sizes >tmp.random.$i
+bedtools nuc -fi ~/Genome/hg19/hg19.fa -bed tmp.random.$i | cut -f1-3,5 >tmp.random.GCcontent.$i
+done
+'
+Islet12.ALL.totalPeak.TOP32K.noBlack.bed.GCcontent<-read.table("Islet12.ALL.totalPeak.TOP32K.noBlack.bed.GCcontent")
+randomCandidates<-list()
+for(i in 1:10){
+  tmp<-read.table(paste("tmp.random.GCcontent",i,sep="."))
+  randomCandidates<-c(randomCandidates,list(tmp))
+}
+targets<-replicate(10,Islet12.ALL.totalPeak.TOP32K.noBlack.bed.GCcontent[,4])
+GCmatrix<-lapply(randomCandidates,function(x){x[,4]}) %>% do.call(cbind,.)
+optimal.index<-abs(GCmatrix-targets) %>% apply(.,1,which.min)
+GCmatch.random.bed<-c()
+for(i in 1: length(optimal.index)){
+  print(i)
+  GCmatch.random.bed<-rbind(GCmatch.random.bed,randomCandidates[[optimal.index[i]]][i,])
+}
+write.table(GCmatch.random.bed[,1:3],"GCmatch.random.bed",sep="\t",quote=F,col.names=F,row.names=F)
+  ##endregion Generate length and GC matched random bed
+
+    ##region run fimo for all Islet12.ALL.totalPeak.TOP32K peaks and GC-matched random control
+"
+less Islet12.ALL.totalPeak.TOP32K.noBlack.bed | awk '{print $1,$2,$3,$1"_"$2"_"$3}' OFS='\t' > Islet12.ALL.totalPeak.TOP32K.noBlack.named.bed
+sort -k1,1 -k2,2n GCmatch.random.bed | awk '{print $1,$2,$3,$1"_"$2"_"$3}' OFS='\t' > GCmatch.random.named.bed
+
+bedtools getfasta -fi ~/Genome/hg19/hg19.fa -bed Islet12.ALL.totalPeak.TOP32K.noBlack.named.bed -fo Islet12.ALL.totalPeak.TOP32K.noBlack.named.hg19.fa -name
+bedtools getfasta -fi ~/Genome/hg19/hg19.fa -bed GCmatch.random.named.bed -fo GCmatch.random.named.hg19.fa -name
+
+Tfmotif=~/google/mysoftware/MEME/meme_4.12.0/Database/motif_databases/HUMAN/
+fimo --o Islet12.ALL.totalPeak.TOP32K.noBlack.fimo $Tfmotif/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme Islet12.ALL.totalPeak.TOP32K.noBlack.named.hg19.fa &
+fimo --o Islet12.ALL.totalPeak.TOP32K.noBlack.extra.fimo ~/Chip-seq/ATAC/scATAC/MotifLibrary/20191219_Extra6_meme  Islet12.ALL.totalPeak.TOP32K.noBlack.named.hg19.fa
+
+fimo --o GCmatch.random $Tfmotif/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme GCmatch.random.named.hg19.fa &
+fimo --o GCmatch.random.extra.fimo ~/Chip-seq/ATAC/scATAC/MotifLibrary/20191219_Extra6_meme GCmatch.random.named.hg19.fa
+
+## Run motif saperately
+ln -s /mnt/rstor/genetics/JinLab/ssz20/zshanshan/improve_image/parameter/epoch_test/GM12878_phasing/motif/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme.separate
+
+mkdir test_individual.islet
+for file in `ls HOCOMOCOv11_full_HUMAN_mono_meme_format.meme.separate/*`;do
+        fimo --oc test_individual.islet $file Islet12.ALL.totalPeak.TOP32K.noBlack.named.hg19.fa
+        cat test_individual.islet/fimo.txt | grep -v sequence >> Islet12.ALL.totalPeak.TOP32K.HOCOMOCOv11_full.individual.merge
+done
+
+"
+TF.name.dic<-read.delim("human_mono_motifs.tsv")
+TF.name.dic$GENE<-strsplit(as.character(TF.name.dic$Transcription.factor),":") %>% sapply(.,function(x){x[2]})
+
+RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased.group2")
+islet.all.motif<-rbind(read.table("Islet12.ALL.totalPeak.TOP32K.noBlack.fimo/fimo.txt"),read.table("Islet12.ALL.totalPeak.TOP32K.noBlack.extra.fimo/fimo.txt"))
+islet.all.motif.sig<-subset(islet.all.motif,V7<1e-6)
+islet.all.motif.sig$V1<-factor(islet.all.motif.sig$V1,levels=unique(islet.all.motif.sig$V1))
+
+## Input the fimo scan individually
+islet.all.motif<-read.table("Islet12.ALL.totalPeak.TOP32K.HOCOMOCOv11_full.individual.merge")
+islet.all.motif.sig<-subset(islet.all.motif,V8<0.2)
+islet.all.motif.sig$V1<-factor(islet.all.motif.sig$V1,levels=unique(islet.all.motif.sig$V1))
+
+
+    ##region use all peaks as background
+Cl<-c(paste("C",1:13,sep=""),paste("Un_C",1:13,sep=""))
+Common.MotifResults.binom<-Motifenrich.binom(subset(islet.all.motif.sig,V2 %in% row.names(subset(RPKM.7CellTypes.LinBased,group=="Common"))),islet.all.motif.sig)
+qs.binom<-matrix(Common.MotifResults.binom[,"qvalue"])
+Folds.binom<-matrix(Common.MotifResults.binom[,"FC"])
+row.names(qs.binom)<-Common.MotifResults.binom$Var1
+row.names(Folds.binom)<-Common.MotifResults.binom$Var1
+for (i in Cl){
+df<-Motifenrich.binom(subset(islet.all.motif.sig,V2 %in% row.names(subset(RPKM.7CellTypes.LinBased,group==i))),islet.all.motif.sig)
+Folds.binom<-cbind(Folds.binom,df[,"FC"])
+qs.binom<-cbind(qs.binom,df[,"qvalue"])
+}
+colnames(Folds.binom)<-c("Common",Cl)
+colnames(qs.binom)<-c("Common",Cl)
+##endregion use all peaks as background
+
+    ##region 2020-10-15 Exploration , pick candiate motif that show specificity with consistent expression
+pdf("SpecPeakMotif.pdf",height=10)
+for (Cl in paste("C",1:13,sep="")){
+qs.binom.top<-qs.binom[qs.binom[,Cl]<0.05,]
+qs.binom.top<-ExtremeOrder(qs.binom.top,orderby=Cl) %>% .[,2:14] %>% head(.,n=50)
+p<-melt(as.matrix(qs.binom.top)) %>% ggplot()+aes(Var2,Var1,fill=-log10(value))+geom_tile(color="black")+scale_fill_gradient(low="white",high="red",limits=c(1,5),oob=scales::squish)+theme_bw()+ggtitle(Cl)
+print(p)
+}
+dev.off()
+
+pdf("SpecPeakMotif.absorder.pdf",height=10)
+for (Cl in paste("C",1:13,sep="")){
+qs.binom.top<-qs.binom[qs.binom[,Cl]<0.05,]
+qs.binom.top<-qs.binom.top[order(qs.binom.top[,Cl]),] %>% .[,2:14] %>% head(.,n=50)
+p<-melt(as.matrix(qs.binom.top)) %>% ggplot()+aes(Var2,Var1,fill=-log10(value))+geom_tile(color="black")+scale_fill_gradient(low="white",high="red",limits=c(1,5),oob=scales::squish)+theme_bw()+ggtitle(Cl)
+print(p)
+}
+dev.off()
+
+## motif VS expression
+TF.name.dic<-read.delim("human_mono_motifs.tsv")
+TF.name.dic$GENE<-strsplit(as.character(TF.name.dic$Transcription.factor),":") %>% sapply(.,function(x){x[2]})
+row.names(TF.name.dic)<-TF.name.dic$Model
+Aggregate.7celltype.RNA.rpkm<-readRDS("mydir/Aggregate.7celltype.RNA.rpkm")
+Aggregate.7celltype.RNA.rpkm<-as.data.frame(Aggregate.7celltype.RNA.rpkm) %>% cbind(.,gene=row.names(.))
+
+pdf("SpecPeakMotif.geneExpr.pdf",height=10,width=10)
+for (Cl in paste("C",1:13,sep="")){
+qs.binom.top<-qs.binom[qs.binom[,Cl]<0.05,]
+qs.binom.top<-ExtremeOrder(qs.binom.top,orderby=Cl) %>% .[,2:14] %>% head(.,n=50)
+TestGene<-TF.name.dic[row.names(qs.binom.top),"GENE"]
+datatoplot<-Aggregate.7celltype.RNA.rpkm[TestGene,] %>% .[complete.cases(.),] %>% melt(.,id.vars=c("gene"))
+ps<-list()
+for(g in unique(datatoplot$gene)){
+p<-subset(datatoplot,gene==g) %>% ggplot()+aes(variable,value,fill=variable)+geom_bar(stat="identity")+theme_bw()+ggtitle(g)+theme(axis.text=element_text(size=10),legend.position="none")
+ps<-c(ps,list(p))
+}
+grid.arrange(grobs=ps,top=Cl)
+}
+dev.off()
+
+pdf("SpecPeakMotif.geneExpr.absorder.pdf",height=10,width=10)
+for (Cl in paste("C",1:13,sep="")){
+qs.binom.top<-qs.binom[qs.binom[,Cl]<0.05,]
+qs.binom.top<-qs.binom.top[order(qs.binom.top[,Cl]),] %>% .[,2:14] %>% head(.,n=50)
+TestGene<-TF.name.dic[row.names(qs.binom.top),"GENE"]
+datatoplot<-Aggregate.7celltype.RNA.rpkm[TestGene,] %>% .[complete.cases(.),] %>% melt(.,id.vars=c("gene"))
+ps<-list()
+for(g in unique(datatoplot$gene)){
+p<-subset(datatoplot,gene==g) %>% ggplot()+aes(variable,value,fill=variable)+geom_bar(stat="identity")+theme_bw()+ggtitle(g)+theme(axis.text=element_text(size=10),legend.position="none")
+ps<-c(ps,list(p))
+}
+grid.arrange(grobs=ps,top=Cl)
+}
+dev.off()
+##endregion Exploration: pick candiate motif that show specificity with consistent expression
+
+    ##region 2020-10-15 Generate final motif plot
+    ##region function ExtremeOrder
+    ExtremeOrder<-function(df,orderby="Common"){
+    index<-which(colnames(df)==orderby)
+    rest<-setdiff(1:ncol(df),index)
+    Specificity<-apply(df,1,function(x){log10(x[index])-sum(log10(x[rest]))})
+    Rest.strenth<-apply(df,1,function(x){sum(log10(x[rest]))})
+    df<-cbind(df,Specificity.rela=Specificity,Rest.strenth=Rest.strenth)
+    df<-as.data.frame(df) %>% .[order(.$Specificity.rela,.$Rest.strenth),]
+    }
+    ##endregion
+    ##region function Motifenrich
+    Motifenrich<-function(queryP.motif,controlP.motif){
+    require(qvalue)
+    query.peaks.motif.summary<-table(queryP.motif$V1) %>% as.data.frame %>% .[order(.$Freq,decreasing=T),]
+    all.motif.sig.summary<-table(controlP.motif$V1) %>% as.data.frame %>% .[order(.$Freq,decreasing=T),]
+    query.peaks.motif.summary<-merge(all.motif.sig.summary,query.peaks.motif.summary,by="Var1")
+    query.peaks.motif.summary<-subset(query.peaks.motif.summary,Freq.x>0)
+    query.peaks.motif.summary$Freq.x<-query.peaks.motif.summary$Freq.x+1
+    query.peaks.motif.summary$Freq.y<-query.peaks.motif.summary$Freq.y+1
+    query.peaks.motif.summary<- cbind(query.peaks.motif.summary,ratio=query.peaks.motif.summary[,"Freq.y"]/query.peaks.motif.summary[,"Freq.x"])
+    pvalues<-c()
+    pvalues.fish<-c()
+    for(i in 1:nrow(query.peaks.motif.summary)){
+       # print(i)
+    fish.test<-fisher.test(matrix(c(query.peaks.motif.summary[i,3],
+    sum(query.peaks.motif.summary$Freq.y)-query.peaks.motif.summary[i,3],
+    query.peaks.motif.summary[i,2],
+    sum(query.peaks.motif.summary$Freq.x)-query.peaks.motif.summary[i,2]),2,2),alternative="greater")
+    pvalues.fish<-c(pvalues.fish,fish.test$p.value)
+    }
+    fulllist<-cbind(query.peaks.motif.summary,FC=query.peaks.motif.summary$ratio/(sum(query.peaks.motif.summary$Freq.y)/sum(query.peaks.motif.summary$Freq.x)),pvalues.fish=pvalues.fish)
+    fulllist$qvalue.fish<-qvalue(fulllist$pvalues.fish)$qvalues
+    return(fulllist)
+    }
+    ##endregion function Motifenrich
+    ##region function Motifenrich.binom
+    Motifenrich.binom<-function(queryP.motif,controlP.motif,alt="greater"){
+    require(qvalue)
+    query.peaks.motif.summary<-table(queryP.motif$V1) %>% as.data.frame %>% .[order(.$Freq,decreasing=T),]
+    all.motif.sig.summary<-table(controlP.motif$V1) %>% as.data.frame %>% .[order(.$Freq,decreasing=T),]
+    query.peaks.motif.summary<-merge(all.motif.sig.summary,query.peaks.motif.summary,by="Var1")
+    query.peaks.motif.summary<-subset(query.peaks.motif.summary,Freq.x>0)
+    query.peaks.motif.summary$Freq.x<-query.peaks.motif.summary$Freq.x+1
+    query.peaks.motif.summary$Freq.y<-query.peaks.motif.summary$Freq.y+1
+    query.peaks.motif.summary<- cbind(query.peaks.motif.summary,ratio=query.peaks.motif.summary[,"Freq.y"]/query.peaks.motif.summary[,"Freq.x"])
+    pvalues<-c()
+    for(i in 1:nrow(query.peaks.motif.summary)){
+       # print(i)
+    binom.md<-binom.test(query.peaks.motif.summary[i,3],sum(query.peaks.motif.summary[,3]),query.peaks.motif.summary[i,2]/sum(query.peaks.motif.summary[,2]),alternative=alt)
+    pvalues<-c(pvalues,binom.md$p.value)
+    }
+    fulllist<-cbind(query.peaks.motif.summary,FC=query.peaks.motif.summary$ratio/(sum(query.peaks.motif.summary$Freq.y)/sum(query.peaks.motif.summary$Freq.x)),pvalues=pvalues)
+    fulllist$qvalue<-qvalue(fulllist$pvalues)$qvalues
+    return(fulllist)
+    }
+    ##endregion function Motifenrich.binom
+##Note: From exploration, picked motifs are curated in    /New_google-drive/Myjob/single_atac/Figures/Fig2. SpecificPeaks/Motif.enrich analysis.xlsx  "FinalMotiftoplot" : stored into finalmotifList
+FinalMotif.present<-read.table("finalmotifList")
+show<-as.character(FinalMotif.present[,1])
+qs.binom.top<-qs.binom[show,2:14]
+qs.binom.top.m<-melt(as.matrix(qs.binom.top))
+qs.binom.top.m$Var1<-factor(qs.binom.top.m$Var1,levels=rev(levels(qs.binom.top.m$Var1)))
+qs.binom.top.m$value[which(qs.binom.top.m$value>0.05)]<-1
+pdf("FinalMotif.present.pdf",height=10)
+ggplot(qs.binom.top.m)+aes(Var2,Var1,fill=-log10(value))+geom_tile(color="black")+scale_fill_gradient(low="white",high="purple",limits=c(0,5),oob=scales::squish)+theme_bw()+ggtitle(Cl)
+dev.off()
+##plot expression
+TestGene<-TF.name.dic[row.names(qs.binom.top),"GENE"]
+TestGene<-c(TestGene[1:2],"RFX6",TestGene[3:5],"ASCL2",TestGene[6:43])
+TestGene[12]<-"ISL1"
+Test.ori.m<-Aggregate.7celltype.RNA.rpkm[TestGene,]  %>% melt(.,id.vars=c("gene"))
+Test.scale<-Aggregate.7celltype.RNA.rpkm[TestGene,1:7] %>% apply(.,1,scale) %>% t
+colnames(Test.scale)<-colnames(Aggregate.7celltype.RNA.rpkm)[1:7]
+TestGene.toplot<-cbind(Test.ori.m,zscore=melt(Test.scale)$value)
+TestGene.toplot$gene<-factor(TestGene.toplot$gene,levels=rev(TestGene))
+pdf("FinalMotif.present.Expr.pdf",height=6,width=4.2)
+ggplot(TestGene.toplot)+aes(variable,gene,fill=zscore,size=log10(value+1))+geom_point(pch=21)+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_classic()
+dev.off()
+## Draw motif logos
+ library(universalmotif)
+ library(ggseqlogo)
+Hocomoco<-read_meme("~/google/mysoftware/MEME/meme_4.12.0/Database/motif_databases/HUMAN/HOCOMOCOv11_full_HUMAN_mono_meme_format.meme")
+motifs<-list()
+for (drawM in Hocomoco[match(show,sapply(Hocomoco,function(x){x@name}))]){
+motif<-drawM@name
+p<-ggseqlogo(drawM@motif)+theme_void()
+motifs<-c(motifs,list(p))
+}
+pdf("motiflogos.pdf",width=2.5,height=24)
+grid.arrange(grobs=motifs,ncol=1)
+dev.off()
+  ##endregion 2020-10-15 Generate final motif plot
+
+  ##endregion run fimo for all Islet12.ALL.totalPeak.TOP32K peaks and GC-matched random control
+
+    ##region supervised motif analysis for celltype specific TFs
+library(EZsinglecell)
+duct.marker<-readRDS("duct.marker")
+acinar.marker<-readRDS("acinar.marker")
+psc.marker<-readRDS("psc.marker")
+data(all.Beta.maker)
+data(allAlpha.marker)
+data(delta.markers)
+data(pp.markers)
+data(TFvector)
+
+all.Beta.tf<-all.Beta.maker[row.names(all.Beta.maker) %in% TFvector,] %>% row.names %>% head(.,n=10)
+all.Alpha.tf<-allAlpha.marker[row.names(allAlpha.marker) %in% TFvector,] %>% row.names %>% head(.,n=10)
+delta.tf<-delta.markers[row.names(delta.markers) %in% TFvector,] %>% row.names %>% head(.,n=10)
+pp.tf<-pp.markers[row.names(pp.markers) %in% TFvector,] %>% row.names %>% head(.,n=10)
+acinar.tf<-c("MECOM","GATA4","PTF1A","CBFA2T3","BATF2")
+duct.tf<-duct.marker[row.names(duct.marker) %in% TFvector,] %>% row.names %>% head(.,n=10)
+psc.tf<-psc.marker[row.names(psc.marker) %in% TFvector,] %>% row.names %>% head(.,n=10)
+delta.tf<- delta.tf[-c(7,10)]
+pp.tf<-pp.tf[-c(8,9)]
+TestGene<-c(all.Beta.tf,delta.tf,all.Alpha.tf,pp.tf,duct.tf,acinar.tf,psc.tf) %>% unique
+
+Test.ori.m<-Aggregate.7celltype.RNA.rpkm[TestGene,]  %>% melt(.,id.vars=c("gene"))
+Test.scale<-Aggregate.7celltype.RNA.rpkm[TestGene,1:7] %>% apply(.,1,scale) %>% t
+colnames(Test.scale)<-colnames(Aggregate.7celltype.RNA.rpkm)[1:7]
+TestGene.toplot<-cbind(Test.ori.m,zscore=melt(Test.scale)$value)
+TestGene.toplot$gene<-factor(TestGene.toplot$gene,levels=rev(TestGene))
+ggplot(TestGene.toplot)+aes(variable,gene,fill=zscore,size=log10(value+1))+geom_point(pch=21)+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_classic()
+
+# TestGene<-TF.name.dic[row.names(qs.binom.top),"GENE"]
+show<-subset(TF.name.dic,GENE %in% TestGene)
+show$GENE<-factor(show$GENE,levels=TestGene)
+show<-row.names(show[order(show$GENE),])
+show[10]<-"HHEX_UN0309.1"
+
+qs.binom.top<-qs.binom[show[show %in% row.names(qs.binom)],2:14]
+qs.binom.top.m<-melt(as.matrix(qs.binom.top))
+qs.binom.top.m$Var1<-factor(qs.binom.top.m$Var1,levels=rev(levels(qs.binom.top.m$Var1)))
+qs.binom.top.m$value[which(qs.binom.top.m$value>0.05)]<-1
+qs.binom.top.m$Var1<-factor(qs.binom.top.m$Var1,levels=rev(show))
+# pdf("FinalMotif.present.pdf",height=10)
+ggplot(qs.binom.top.m)+aes(Var2,Var1,fill=-log10(value))+geom_tile(color="black")+scale_fill_gradient(low="white",high="purple",limits=c(0,5),oob=scales::squish)+theme_bw()+ggtitle(Cl)
+# dev.off()
+
+  ##endregion Specific peaks VS DNA binding motif
+  ##endregion Specific peaks VS DNA binding motif
+
+    ##region Specific peaks VS GWAS
+  "
+  cd /Chip-seq/ATAC/scATAC/IsletscATAC/Islet12.F.track/PRSList
+  cp ~/Chip-seq/ATAC/scATAC/scATAC19.10.19/Combined10islet/CelltypeSpec/DoGWASenrichment.V2.R ./
+  cp ~/Chip-seq/ATAC/scATAC/scATAC19.10.19/Combined10islet/CelltypeSpec/DoGWASenrichment.V2.sh ./
+
+  "
+  ##endregion
+
+  ##endregion Specific peaks VS RNA expression
+
+
+##endregion Cell type Peak Study

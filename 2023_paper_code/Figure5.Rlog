@@ -1,0 +1,307 @@
+##region Beta cell CArePACT
+
+  ##region Step 1 generate single cell cell~Peak Matrix
+  "
+less Beta.SVM.KNN.filteredFinal_peaks.narrowPeak | awk '{print $1,$2,$3,$1"_"$2"_"$3}' OFS="\t" > Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed
+bedtools intersect -a Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.bed -b wgEncodeHg19ConsensusSignalArtifactRegions.bed -v -wa > Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.bed
+##Generate DAC
+less ../source | ../GenerateDAC.pl Beta.SVM.KNN.filteredFinal_peaks.narrowPeak.noblack.bed  Beta.SVM.KNN.filteredFinal.noblack
+  "
+# SVM.KNN.filtered<-readRDS("mydir/SVM.KNN.filtered")
+p1<-readRDS("mydir/p1.svm") ## Unfiltered cell types
+SVM.KNN.filtered.final<-readRDS("mydir/SVM.KNN.filtered.final")
+Islet.scATAC.metadata<-read.table("~/Chip-seq/ATAC/scATAC/IsletscATAC/QC/Islet.scATAC.metadata")
+row.names(Islet.scATAC.metadata)<-Islet.scATAC.metadata$Name
+Islet.scATAC.metadata<-Islet.scATAC.metadata[,c("Fragments","PeakRatio","donor"),drop=F]
+Beta.all.metadata<-Islet.scATAC.metadata[names(p1)[which(p1=="Beta")],]
+Beta.filtered.metadata<-Islet.scATAC.metadata[row.names(subset(SVM.KNN.filtered.final,p1=="Beta")),]
+# saveRDS(Beta.all.metadata,"mydir/Beta.all.metadata")
+# saveRDS(Beta.filtered.metadata,"mydir/Beta.filtered.metadata")
+Beta.all.metadata<-readRDS("mydir/Beta.all.metadata")
+Beta.filtered.metadata<-readRDS("mydir/Beta.filtered.metadata")
+library(Matrix.utils)
+Beta.SVM.KNN.filteredFinal.noblack<-read.table("Islet.scATAC.dac.Beta.SVM.KNN.filteredFinal.noblack")
+names(Beta.SVM.KNN.filteredFinal.noblack)<-c("Cell","Peak","Cts")
+Beta.SVM.KNN.filteredFinal.noblack$Cts[which(Beta.SVM.KNN.filteredFinal.noblack$Cts>1)]<-1
+Beta.SVM.KNN.filteredFinal.noblack.Mtx<-dMcast(Beta.SVM.KNN.filteredFinal.noblack,Peak~Cell)
+colnames(Beta.SVM.KNN.filteredFinal.noblack.Mtx)<-gsub("Cell","",colnames(Beta.SVM.KNN.filteredFinal.noblack.Mtx))
+ALL.Beta.ATAC.Mtx<-Beta.SVM.KNN.filteredFinal.noblack.Mtx[,row.names(Beta.all.metadata)]
+Filtered.Beta.ATAC.Mtx<-Beta.SVM.KNN.filteredFinal.noblack.Mtx[,row.names(Beta.filtered.metadata)]
+
+# saveRDS(ALL.Beta.ATAC.Mtx,"mydir/ALL.Beta.ATAC.Mtx")
+# saveRDS(Filtered.Beta.ATAC.Mtx,"mydir/Filtered.Beta.ATAC.Mtx")
+ALL.Beta.ATAC.Mtx<-readRDS("mydir/ALL.Beta.ATAC.Mtx")
+Filtered.Beta.ATAC.Mtx<-readRDS("mydir/Filtered.Beta.ATAC.Mtx")
+  ##endregion generate single cell cell~Peak Matrix
+
+  ##region Step 2 Compute LSI
+  Beta.all.metadata<-readRDS("mydir/Beta.all.metadata")
+  Beta.filtered.metadata<-readRDS("mydir/Beta.filtered.metadata")
+  ALL.Beta.ATAC.Mtx<-readRDS("mydir/ALL.Beta.ATAC.Mtx")
+  Filtered.Beta.ATAC.Mtx<-readRDS("mydir/Filtered.Beta.ATAC.Mtx")
+  beta.atac <- CreateSeuratObject(counts = ALL.Beta.ATAC.Mtx, assay = "ATAC", project = "beta.atac")
+  beta.atac@meta.data<-Tomerge_v2(beta.atac@meta.data,Beta.all.metadata)
+  DefaultAssay(beta.atac) <- "ATAC"
+  VariableFeatures(beta.atac) <- names(which(Matrix::rowSums(beta.atac) > 100))
+  beta.atac <- RunLSI(beta.atac, n = 50, scale.max = NULL)
+  beta.atac <- RunUMAP(beta.atac, reduction = "lsi", dims = 1:50)
+  ##endregion Step 2 Compute LSI
+
+  ##region Step 3 Build caRePACT model (with Cell number balancing)
+  names(beta.atac.LSI.withinfo)[51]<-"donor"
+  beta.atac.LSI.withinfo<-beta.atac@reductions$lsi@cell.embeddings %>% Tomerge_v2(.,beta.atac@meta.data)
+  beta.atac.LSI.withinfo$disease<-gsub("[0-9]$","",beta.atac.LSI.withinfo$donor)
+  beta.atac.LSI.withinfo$donor<-mapvalues(beta.atac.LSI.withinfo$donor,from=c("HT1","HT2","HT3","HT4","HT5","HT6","HT7","HT8","T2D1","T2D3","T2D4","T2D5"),to=c("HT1",NA,"HT2","HT3","HT4","HT5","HT6","HT7","T2D1","T2D2","T2D3","T2D4"))
+  beta.atac.LSI.withinfo<-beta.atac.LSI.withinfo[!is.na(beta.atac.LSI.withinfo$donor),]
+  ## boxplot exploration, LSI_3,6,8 are the best
+  ggplot(melt(beta.atac.LSI.withinfo[,c(1:20,57)]))+aes(variable,value,fill=disease)+geom_boxplot(outlier.shape=NA)+theme_classic()+scale_fill_manual(values=c("dodgerblue","firebrick1"))+theme(axis.title=element_blank(),axis.text.x=element_text(angle=45,vjust=0.75))
+  ## 2d plot 3,6,8
+  ggplot(beta.atac.LSI.withinfo)+aes(LSI_3,LSI_8,color=disease)+geom_point(size=1.5)+theme_classic()+scale_color_manual(values=c("grey","red"))+theme(axis.text=element_text(size=24,color="black"),axis.title=element_text(size=24,color="black"))+ guides(colour = guide_legend(override.aes = list(size=15)))
+  adjustrange = seq(0, 180, length.out = 13)
+  library(plot3D)
+  pdf("CARePACTplot3D.pdf")
+  scatter3D(beta.atac.LSI.withinfo[,"LSI_3"], beta.atac.LSI.withinfo[,"LSI_6"],beta.atac.LSI.withinfo[,"LSI_8"],ticktype = "detailed", pch = 20, theta = 90, phi = 30, colvar = ifelse(beta.atac.LSI.withinfo[,"disease"]=="T2D",1,0), bty = "b2", cex = 0.3, col = alpha.col(col = c("steelblue", "red"), 0.6))
+  dev.off()
+
+  ## Balancing the cell numbers and calculate pseudoindex
+  beta.atac.LSI.withinfo.subs<-list()
+  for(i in 1:100){
+  beta.atac.LSI.withinfo.sub<-c()
+  for (d in levels(beta.atac.LSI.withinfo$donor)){
+    tmp<-subset(beta.atac.LSI.withinfo,donor==d)
+    if(nrow(tmp)<=500){
+      beta.atac.LSI.withinfo.sub<-rbind(beta.atac.LSI.withinfo.sub,tmp)
+    }else{
+      beta.atac.LSI.withinfo.sub<-rbind(beta.atac.LSI.withinfo.sub,tmp[sample(1:nrow(tmp),500),])
+    }
+  }
+  beta.atac.LSI.withinfo.subs<-c(beta.atac.LSI.withinfo.subs,list(beta.atac.LSI.withinfo.sub))
+  }
+  pseudo.indexes<-list()
+  for(i in 1:100){
+  md<-GetRePACTmodel.cca(ccaWithinfo=beta.atac.LSI.withinfo.subs[[i]],prefix="LSI",pheno="disease",CCrange=c(1:10))
+  trainingdata<-beta.atac.LSI.withinfo.subs[[i]]
+  Restdata<-beta.atac.LSI.withinfo[setdiff(row.names(beta.atac.LSI.withinfo),row.names(beta.atac.LSI.withinfo.subs[[i]])),]
+  Alldata<-beta.atac.LSI.withinfo
+  beta.atac.LSI.withinfo.subs[[i]]$pseudo.index<-apply(trainingdata[,1:10],1,function(x){md$coefficients[[1]]+sum(x*md$coefficients[2:11])})
+  Restdata$pseudo.index<-apply(Restdata[,1:10],1,function(x){md$coefficients[[1]]+sum(x*md$coefficients[2:11])})
+  pseudo.indexes<-c(pseudo.indexes,list(apply(Alldata[,1:10],1,function(x){md$coefficients[[1]]+sum(x*md$coefficients[2:11])})))
+  }
+  ##region check how consistent, random 500 cell banlancing is(no worries, pretty consistent)
+  ps<-list()
+  for(i in 1:10){
+  datatoplot<-cbind(beta.atac.LSI.withinfo[,c("donor","disease")],pseudo.index=pseudo.indexes[[i]])
+  p<-ggplot(datatoplot)+aes(donor,pseudo.index,fill=disease)+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("steelblue", "red"))+theme_bw()+theme(legend.position="none")
+  ps<-c(ps,list(p))
+  }
+  ##endregion check how consistent, random 500 cell banlancing is(very consistent)
+  md.all<-GetRePACTmodel.cca(ccaWithinfo=beta.atac.LSI.withinfo,prefix="LSI",pheno="disease",CCrange=c(1:10))
+  beta.atac.LSI.withinfo$pseudo.index = md.all$linear.predictors
+  beta.atac.LSI.withinfo$pseudo.index.balanced<-do.call(cbind,pseudo.indexes) %>% rowMeans()
+  ## Plot violin pseudoindex
+  p1<-ggplot(beta.atac.LSI.withinfo)+aes(donor,pseudo.index.balanced,fill=disease)+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("steelblue", "red"))+theme_bw()+theme(legend.position="none")
+  p2<-ggplot(beta.atac.LSI.withinfo)+aes(pseudo.index.balanced,fill=disease)+geom_density(alpha=0.75)+scale_fill_manual(values=c("steelblue","red"))+theme_classic()+theme(legend.position="none")
+  pdf("CARePACT.violin.pdf",height=5)
+  print(p1)
+  print(p2)
+  dev.off()
+
+  ##endregion Step4 Build RePACT model
+
+  ##region Step 4 Call diff peaks
+  Beta.all.metadata<-readRDS("mydir/Beta.all.metadata")
+  ALL.Beta.ATAC.Mtx<-readRDS("mydir/ALL.Beta.ATAC.Mtx")
+  beta.atac.LSI.withinfo$rank<-rank(beta.atac.LSI.withinfo$pseudo.index.balanced)
+  saveRDS(beta.atac.LSI.withinfo,"mydir/beta.atac.LSI.withinfo")
+  beta.atac.LSI.withinfo<-readRDS("mydir/beta.atac.LSI.withinfo")
+  ##region Test Bin number
+  betT2D.diffPeaks<-list()
+  for(BinN in c(10,20,30,40)){
+    beta.ATAC.LSI.bin.ob<-MakeEvenBinBydepth(cellvsPeak.m=t(ALL.Beta.ATAC.Mtx),data.info=beta.atac.LSI.withinfo,binnumber=BinN)
+    betaT2D.diffPeaks.bin.LSI<-CallT2Dpeak_qvalue(beta.ATAC.LSI.bin.ob$cellvsPeak.m.aggr,beta.ATAC.LSI.bin.ob$depths,beta.ATAC.LSI.bin.ob$index,qcut=0.01,slopecut1=0.5,slopecut2=-0.5,doscale=T)
+    betT2D.diffPeaks<-c(betT2D.diffPeaks,list(betaT2D.diffPeaks.bin.LSI))
+  }
+  library(VennDiagram)
+
+  bin10.p.up<-row.names(betT2D.diffPeaks[[1]]$UP)
+  bin20.p.up<-row.names(betT2D.diffPeaks[[2]]$UP)
+  bin30.p.up<-row.names(betT2D.diffPeaks[[3]]$UP)
+  bin40.p.up<-row.names(betT2D.diffPeaks[[4]]$UP)
+
+  bin10.p.dn<-row.names(betT2D.diffPeaks[[1]]$DN)
+  bin20.p.dn<-row.names(betT2D.diffPeaks[[2]]$DN)
+  bin30.p.dn<-row.names(betT2D.diffPeaks[[3]]$DN)
+  bin40.p.dn<-row.names(betT2D.diffPeaks[[4]]$DN)
+  venn.diagram(x=list(bin10=bin10.p.dn,bin20=bin20.p.dn[1:1000],bin30=bin30.p.dn,bin40=bin40.p.dn),filename="Beta.T2D.Peaktraj.DN.bins.tiff",category.names=c("bin10","bin20","bin30","bin40"),cat.col=c("skyblue","gold","red","green"),fill=c("skyblue","gold","red","green"),cex=4)
+  venn.diagram(x=list(bin10=bin10.p.up,bin20=bin20.p.up,bin30=bin30.p.up,bin40=bin40.p.up),filename="Beta.T2D.Peaktraj.UP.bins.tiff",category.names=c("bin10","bin20","bin30","bin40"),cat.col=c("skyblue","gold","red","green"),fill=c("skyblue","gold","red","green"),cex=4)
+
+  Beta.T2D.UP.Peaks.Overlapped<-intersect(bin10.p.up,bin20.p.up) %>% intersect(.,bin30.p.up) %>% intersect(.,bin40.p.up)
+  Beta.T2D.DN.Peaks.Overlapped<-intersect(bin10.p.dn,bin20.p.dn) %>% intersect(.,bin30.p.dn) %>% intersect(.,bin40.p.dn)
+  ##endregion Test Bin number
+  beta.ATAC.LSI.20bin.ob<-MakeEvenBinBydepth(cellvsPeak.m=t(ALL.Beta.ATAC.Mtx),data.info=beta.atac.LSI.withinfo,binnumber=20)
+  betaT2D.diffPeaks.20bin.LSI<-CallT2Dpeak_qvalue(beta.ATAC.LSI.20bin.ob$cellvsPeak.m.aggr,beta.ATAC.LSI.20bin.ob$depths,beta.ATAC.LSI.20bin.ob$index,qcut=0.01,slopecut1=0.5,slopecut2=-0.5,doscale=T)
+  #Donor contribution plot 10/20/30/40 bins
+   Evenbin.donorContribute<-beta.atac.LSI.20bin.ob$data.info.withbin %>% .[,c("donor","evenfragbin")] %>% table %>% as.matrix %>% apply(.,1,function(x){x/sum(x)}) %>% melt
+   Evenbin.donorContribute<-cbind(Evenbin.donorContribute,disease=ifelse(grepl("T2D",Evenbin.donorContribute$donor),"T2D","ND"))
+   ggplot(Evenbin.donorContribute)+aes(donor,value,fill=disease)+geom_bar(stat="identity",color="black")+facet_grid(~evenfragbin)+theme(axis.text=element_blank(),axis.ticks=element_blank())+scale_fill_manual(values=c("steelblue","red"))+theme_bw()
+   ## Draw T2D diff peaks using simple heatmap
+  library(qvalue)
+  p1<-apply(betaT2D.diffpeak.40bin.LSI$UPDN.toplot,2,function(x){scale(x)}) %>% melt() %>% ggplot()+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_classic()+theme(axis.text=element_blank())+ggtitle("LSI-20bins")+labs(x="T2D trajectory")
+  # saveRDS(betaT2D.diffPeaks.20bin.LSI,"mydir/betaT2D.diffpeak.20bin.LSI.rds")
+  betaT2D.diffPeaks.20bin.LSI<-readRDS("mydir/betaT2D.diffpeak.20bin.LSI.rds")  #This is the final version
+  # betaT2D.diffpeak.20bin.LSI.old<-readRDS("mydir/betaT2D.diffpeak.20bin.LSI.rds")
+  ## Overlap between old and new
+  # library(VennDiagram)
+  #  venn.diagram(x=list(Old.DN=row.names(betaT2D.diffpeak.20bin.LSI.old$DN),Old.UP=row.names(betaT2D.diffpeak.20bin.LSI.old$UP),New.DN=row.names(betaT2D.diffpeak.20bin.LSI$DN),New.UP=row.names(betaT2D.diffpeak.20bin.LSI$UP)),filename="Beta.T2D.traj.oldVSnew.tiff",category.names=c("Old.DN","Old.UP","New.DN","New.UP"),cat.col=c("skyblue","gold","red","green"),fill=c("skyblue","gold","red","green"),cex=4)
+  ##endregion Call diff peaks
+
+  ##region Call diff peaks on bulk level using DEseq
+  Beta.all.metadata<-readRDS("mydir/Beta.all.metadata")
+  ALL.Beta.ATAC.Mtx<-readRDS("mydir/ALL.Beta.ATAC.Mtx")
+  Donors<-levels(Beta.all.metadata$donor)[c(1,3:12)]
+  ALL.Beta.ATAC.bulk<-data.frame(HT1=rowSums(ALL.Beta.ATAC.Mtx[,row.names(subset(Beta.all.metadata,donor==Donors[1]))]))
+  for(i in 2:length(Donors)){
+    ALL.Beta.ATAC.bulk<-cbind(ALL.Beta.ATAC.bulk,rowSums(ALL.Beta.ATAC.Mtx[,row.names(subset(Beta.all.metadata,donor==Donors[i]))]))
+  }
+  names(ALL.Beta.ATAC.bulk)<-c(paste("HT",1:7,sep=""),paste("T2D",1:4,sep=""))
+  Bulk.meta<-data.frame(row.names=names(ALL.Beta.ATAC.bulk),condition=c(rep("HT",7),rep("T2D",4)))
+  library("DESeq2")
+  dds <- DESeqDataSetFromMatrix(countData = ALL.Beta.ATAC.bulk,
+                                colData = Bulk.meta,
+                                design = ~ condition)
+  dds <- DESeq(dds)
+  res<-results(dds)
+  summary(res)
+  betaT2D.diffPeaks.repact.bulk<- Tomerge_v2(betaT2D.diffPeaks.20bin.LSI$pseudoregress.all[,c("slope","qvalue")],as.data.frame(results(dds))[,c("log2FoldChange","pvalue","padj")])
+  caRePACTpeaks<-c()
+  caRePACTpeaks[which(row.names(betaT2D.diffPeaks.repact.bulk) %in% row.names(betaT2D.diffPeaks.20bin.LSI$UP))]<-"UP"
+  caRePACTpeaks[which(row.names(betaT2D.diffPeaks.repact.bulk) %in% row.names(betaT2D.diffPeaks.20bin.LSI$DN))]<-"DN"
+  caRePACTpeaks[which(!row.names(betaT2D.diffPeaks.repact.bulk) %in% c(row.names(betaT2D.diffPeaks.20bin.LSI$UP),row.names(betaT2D.diffPeaks.20bin.LSI$DN)))]<-""
+  betaT2D.diffPeaks.repact.bulk$caRePACTpeaks<-caRePACTpeaks
+  deseq0.01<-c()
+  deseq0.01[which(betaT2D.diffPeaks.repact.bulk$pvalue<0.01 &betaT2D.diffPeaks.repact.bulk$log2FoldChange>0)]<-"bulk.up"
+  deseq0.01[which(betaT2D.diffPeaks.repact.bulk$pvalue<0.01 &betaT2D.diffPeaks.repact.bulk$log2FoldChange<0)]<-"bulk.dn"
+  deseq0.01[which(betaT2D.diffPeaks.repact.bulk$pvalue>0.01)]<-""
+  deseq0.05<-c()
+  deseq0.05[which(betaT2D.diffPeaks.repact.bulk$pvalue<0.05 &betaT2D.diffPeaks.repact.bulk$log2FoldChange>0)]<-"bulk.up"
+  deseq0.05[which(betaT2D.diffPeaks.repact.bulk$pvalue<0.05 &betaT2D.diffPeaks.repact.bulk$log2FoldChange<0)]<-"bulk.dn"
+  deseq0.05[which(betaT2D.diffPeaks.repact.bulk$pvalue>0.05)]<-""
+  betaT2D.diffPeaks.repact.bulk$deseq0.01<-deseq0.01
+  betaT2D.diffPeaks.repact.bulk$deseq0.05<-deseq0.05
+  # saveRDS(betaT2D.diffPeaks.repact.bulk,"mydir/betaT2D.diffPeaks.repact.bulk")
+  betaT2D.diffPeaks.repact.bulk<-readRDS("mydir/betaT2D.diffPeaks.repact.bulk")
+
+  ##endregion Call diff peaks on bulk level using DEseq
+
+  ##region  Visulization of diff peaks (Chipseq signal intensity heatmap)
+
+    ##region Generate bin1-bin10 monoclonal beds
+  beta.ATAC.LSI.bin10.ob<-MakeEvenBinBydepth(cellvsPeak.m=t(ALL.Beta.ATAC.Mtx),data.info=beta.atac.LSI.withinfo,binnumber=10)
+  beta.ATAC.LSI.bin10.dic<-beta.ATAC.LSI.bin10.ob$data.info.withbin[,c("evenfragbin"),drop=F]
+  beta.ATAC.LSI.bin10.dic$evenfragbin<-paste("BetaT2D_",beta.ATAC.LSI.bin10.dic$evenfragbin,sep="")
+  write.table(beta.ATAC.LSI.bin10.dic,"beta.ATAC.LSI.bin10.dic",col.names=F,row.names=T,quote=F,sep="\t")
+
+    ##endregion Generate bin1-bin10 monoclonal beds
+
+    ##region Generate summit windows to get WindowSumits.LR and WindowSumits.expandedALL
+    setwd("~/Chip-seq/ATAC/scATAC/IsletscATAC/Islet12.F.track")
+    Beta.SVM.KNN.filteredFinal_peaks<-read.table("Beta.SVM.KNN.filteredFinal_peaks.xls",head=T)
+    chrom.sizes<-read.table("~/Genome/hg19/hg19.chrom.sizes",row.names=1) # Checked
+    WindowSumits<-data.frame(row.names=with(Beta.SVM.KNN.filteredFinal_peaks,paste(chr,start-1,end,sep="_")),chr=Beta.SVM.KNN.filteredFinal_peaks$chr,abs_summit=Beta.SVM.KNN.filteredFinal_peaks$abs_summit)
+    WindowSumits.LR<-data.frame(row.names=row.names(WindowSumits),chr=WindowSumits$chr,L=WindowSumits$abs_summit-1500,R=WindowSumits$abs_summit+1500,Window=paste("Window",1:nrow(WindowSumits),sep="_"))
+    WindowSumits.LR<-subset(WindowSumits.LR, L>0)
+    # saveRDS(WindowSumits.LR,"mydir/Beta.WindowSumits.LR")
+    WindowSumits.LR<-readRDS("mydir/Beta.WindowSumits.LR")
+    # WindowSumits.LR$limit<-chrom.sizes[as.character(WindowSumits.LR$chr),]  # Checked, no problem
+      ##region function Expand
+    Expand<-function(x,Bins=100,window=3000){
+    stepsize<-window/Bins
+    df<- data.frame(Chr=x[1],Start=c(x[2],seq(x[2],x[3],stepsize)[2:(Bins)]+1),end=c(seq(x[2],x[3],stepsize)[2:(Bins)],x[3]),Bin=1:Bins,Window=x[4])
+    return(df)
+    }
+    ##endregion function Expand
+    WindowSumits.expandedALL.lst<-apply(WindowSumits.LR,1,Expand)
+    library(data.table)
+    WindowSumits.expandedALL<-rbindlist(WindowSumits.expandedALL.lst)
+    WindowSumits.expandedALL<-as.data.frame(WindowSumits.expandedALL)
+    WindowSumits.expandedALL$Start<-as.numeric(as.character(WindowSumits.expandedALL$Start))
+    WindowSumits.expandedALL$end<-as.numeric(as.character(WindowSumits.expandedALL$end))
+    ##endregion Generate summit windows  to get WindowSumits.LR and WindowSumits.expandedALL
+
+    ##region Count reads from monoclonal files
+    write.table(WindowSumits.expandedALL,"BetaPeaks.WindowSumits.expandedAL.tb",quote=F,sep="\t",row.names=F,col.names=F)
+    "
+    rm -rf Number
+    for file in `ls | ls | grep betaLSI.bin`
+    do
+    echo $file
+    name=${file/.betaLSI.bin/}
+    bedtools intersect -a BetaPeaks.WindowSumits.expandedAL.tb -b  $file -c > $name.WindowMonoclonal.LR.expanded
+    Depth=`wc -l ./$file | cut -f1 -d' '`
+    echo -e "$name\t$Depth" >>Number
+    done
+    "
+    ##endregion Count reads from monoclonal files
+
+    ##region Step4 Read data for ploting
+
+    Numbers<-read.table("Number")
+    Bins.lst<-list()
+    for(bin in paste("BetaT2D_",1:10,".bed",sep="")){
+      file<-paste(bin,".WindowMonoclonal.LR.expanded",sep="")
+      tmp<-read.table(file)
+      tmp$RPKM<-1e6*tmp$V6/Numbers[Numbers$V1==bin,2]
+      Bins.lst<-c(Bins.lst,list(tmp))
+    }
+    names(Bins.lst)<-paste("BetaT2D",1:10,sep="_")
+    WindowSumits.LR<-readRDS("mydir/Beta.WindowSumits.LR")
+    betaT2D.diffpeak.40bin.LSI<-readRDS("mydir/betaT2D.diffpeak.40bin.LSI.rds")
+
+  ##endregion
+
+  ##endregion
+
+  ##region output featured peaks
+  RPKM.7CellTypes.LinBased<-readRDS("mydir/RPKM.7CellTypes.LinBased")
+  betaT2D.diffpeak.40bin.LSI<-readRDS("mydir/betaT2D.diffpeak.40bin.LSI.rds")
+
+  MakePeakBed<-function(names){
+  bed<-strsplit(names,"_") %>% .[sapply(.,function(x){length(x)})==3] %>% do.call(rbind,.) %>% as.data.frame
+  return(bed)
+  }
+betaT2D.diffpeak.UP.all<-MakePeakBed(row.names(betaT2D.diffpeak.40bin.LSI$UP))
+betaT2D.diffpeak.DN.all<-MakePeakBed(row.names(betaT2D.diffpeak.40bin.LSI$DN))
+Lin.Peakgroup.lst<-list()
+for(g in levels(RPKM.7CellTypes.LinBased$group)){
+  group<-row.names(subset(RPKM.7CellTypes.LinBased,group==g))
+  groupbed<-MakePeakBed(group)
+  Lin.Peakgroup.lst<-c(Lin.Peakgroup.lst,list(groupbed))
+}
+names(Lin.Peakgroup.lst)<-levels(RPKM.7CellTypes.LinBased$group)
+
+  ##endregion
+
+  ##region Step 6 Make track for even bins
+  beta.atac.LSI.10bin.dic<-beta.atac.LSI.10bin.ob$data.info.withbin[,"evenfragbin",drop=F]
+  beta.atac.LSI.10bin.dic$evenfragbin<-paste("T2DLSI",beta.atac.LSI.10bin.dic$evenfragbin,sep="_")
+  write.table(as.data.frame(beta.atac.LSI.10bin.dic),"beta.atac.LSI.10bin.dic.v1.tab",quote=F,sep="\t",row.names=T,col.names=F)
+  "
+  ~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step1.pl beta.atac.LSI.10bin.dic.v1.tab  beta.atac.LSI.10bin.dic.v1
+
+  ~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step2.sh `ls | grep beta.atac.LSI.10bin.dic.v1.bed | xargs`
+  "
+  BetacellvsPeak.m.filtered.downsample.pair$info
+  row.names(beta.atac.LSI.10bin.dic)[grep("918CW1|p18CW2|CW1|CW2",row.names(beta.atac.LSI.10bin.dic))]
+  ##endregion
+
+  ##region Make track for each donor (Beta cell)
+  beta.atac.LSI.donor.dic<-beta.atac.LSI.10bin.ob$data.info.withbin[,"donor",drop=F] %>% .[order(.$donor),,drop=F]
+  write.table(as.data.frame(beta.atac.LSI.donor.dic),"beta.atac.LSI.donor.dic.tab",quote=F,sep="\t",row.names=T,col.names=F)
+"
+  ~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step1.pl beta.atac.LSI.donor.dic.tab  beta.atac.LSI.donor
+
+  ~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step2.sh `ls | grep beta.atac.LSI.donor.bed | xargs`
+  "
+
+  ##endregion Make track for each donor (Beta cell)
+  ##endregion Beta cell CArePACT

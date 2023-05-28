@@ -1,0 +1,636 @@
+
+library(Matrix.utils)
+library(Seurat,lib.loc="~/Chip-seq/ATAC/scATAC/Clusteringtest/Seurat3")
+library(pdist)
+library(e1071)  ## This is for SVM classification
+library(EZsinglecell)
+library(dplyr)
+library(reshape2)
+SeuratALL.filtered.0.6<-readRDS("~/Dropseq/DGEanalysis/Islet412+511+919+T2D1+S4/workplaceLink/2017.9.21.revise/927.All.filtered.ob")
+dic<-readRDS("~/Chip-seq/ATAC/scATAC/IsletscATAC/donor.dic")
+source("/mnt/rstor/genetics/JinLab/cxw486/Chip-seq/ATAC/scATAC/IsletscATAC/scATAC.Rfun")
+source("~/lib/dropseqlib/analysisscript/Newfun.R")
+Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+Islet12.Endo.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.Endo.scRNA.seurat3.filtered")
+##region Step 1, Loading data, matrix of scATAC and matrix of scRNA
+library(Matrix.utils)
+library(reshape2)
+Islet.scATAC.dac.biggenes.Mtx.long<-read.table("Islet.scATAC.dac.biggeneNew")
+Islet.scATAC.dac.Bin10K.Mtx.long<-read.table("Islet.scATAC.dac.Bin10K")
+Islet.scATAC.dac.Bin5K.Mtx.long<-read.table("Islet.scATAC.dac.Bin5K")
+Islet.scATAC.dac.IsletALLPeak.Mtx.long<-read.table("Islet.scATAC.dac.IsletALLPeak")
+Islet.scATAC.metadata<-read.table("Islet.scATAC.metadata")
+# Make biggene sparse matrix
+Islet.scATAC.dac.biggenes.Mtx.long.filtered<-subset(Islet.scATAC.dac.biggenes.Mtx.long,V1 %in% Islet.scATAC.metadata$Name)
+names(Islet.scATAC.dac.biggenes.Mtx.long.filtered)<-c("Cell","Gene","Counts")
+Islet.scATAC.dac.biggenes.Mtx<-dMcast(Islet.scATAC.dac.biggenes.Mtx.long.filtered,Gene~Cell)
+colnames(Islet.scATAC.dac.biggenes.Mtx)<-gsub("Cell","",colnames(Islet.scATAC.dac.biggenes.Mtx))
+saveRDS(Islet.scATAC.dac.biggenes.Mtx,"mydir/Islet.scATAC.dac.biggenes.Mtx")
+# Make AllPeak sparse matrix
+Islet.scATAC.dac.IsletALLPeak.Mtx.long.filtered<-subset(Islet.scATAC.dac.IsletALLPeak.Mtx.long,V1 %in% Islet.scATAC.metadata$Name)
+names(Islet.scATAC.dac.IsletALLPeak.Mtx.long.filtered)<-c("Cell","Gene","Counts")
+Islet.scATAC.dac.IsletALLPeak.Mtx<-dMcast(Islet.scATAC.dac.IsletALLPeak.Mtx.long.filtered,Gene~Cell)
+colnames(Islet.scATAC.dac.IsletALLPeak.Mtx)<-gsub("Cell","",colnames(Islet.scATAC.dac.IsletALLPeak.Mtx))
+saveRDS(Islet.scATAC.dac.IsletALLPeak.Mtx,"mydir/Islet.scATAC.dac.IsletALLPeak.Mtx")
+# Make Bin10K sparse matrix
+Islet.scATAC.dac.Bin10K.Mtx.long.filtered<-subset(Islet.scATAC.dac.Bin10K.Mtx.long,V1 %in% Islet.scATAC.metadata$Name)
+names(Islet.scATAC.dac.Bin10K.Mtx.long.filtered)<-c("Cell","Gene","Counts")
+Islet.scATAC.dac.Bin10K.Mtx<-dMcast(Islet.scATAC.dac.Bin10K.Mtx.long.filtered,Gene~Cell)
+colnames(Islet.scATAC.dac.Bin10K.Mtx)<-gsub("Cell","",colnames(Islet.scATAC.dac.Bin10K.Mtx))
+saveRDS(Islet.scATAC.dac.Bin10K.Mtx,"mydir/Islet.scATAC.dac.Bin10K.Mtx")
+# Make Bin5K sparse matrix
+Islet.scATAC.dac.Bin5K.Mtx.long.filtered<-subset(Islet.scATAC.dac.Bin5K.Mtx.long,V1 %in% Islet.scATAC.metadata$Name)
+names(Islet.scATAC.dac.Bin5K.Mtx.long.filtered)<-c("Cell","Gene","Counts")
+Islet.scATAC.dac.Bin5K.Mtx<-dMcast(Islet.scATAC.dac.Bin5K.Mtx.long.filtered,Gene~Cell)
+colnames(Islet.scATAC.dac.Bin5K.Mtx)<-gsub("Cell","",colnames(Islet.scATAC.dac.Bin5K.Mtx))
+saveRDS(Islet.scATAC.dac.Bin5K.Mtx,"mydir/Islet.scATAC.dac.Bin5K.Mtx")
+
+Islet.scATAC.dac.biggenes.Mtx<-readRDS("mydir/Islet.scATAC.dac.biggenes.Mtx")
+Islet.scATAC.dac.IsletALLPeak.Mtx<-readRDS("mydir/Islet.scATAC.dac.IsletALLPeak.Mtx")
+Islet.scATAC.dac.Bin10K.Mtx<-readRDS("mydir/Islet.scATAC.dac.Bin10K.Mtx")
+Islet.scATAC.dac.Bin5K.Mtx<-readRDS("mydir/Islet.scATAC.dac.Bin5K.Mtx")
+
+##endregion Step 1
+
+
+##region ##2020-8-11 benchmark scATAC clustering
+
+  ##region  Prepare scRNAseq data
+  Islet.scATAC.metadata<-read.table("~/Chip-seq/ATAC/scATAC/IsletscATAC/QC/Islet.scATAC.metadata")
+  row.names(Islet.scATAC.metadata)<-Islet.scATAC.metadata$Name
+  Islet.scRNA.seurat3<-readRDS("/mnt/rstor/genetics/JinLab/sxz694/01.drop_seq/05.Islet/03.3rd/zz.redocluster/04.cell_type.names_genes/zz.chen.4_27_2020/All_islet_30.OBJ3.subset.with_cell_type.rds")
+  Islet.scRNA.seurat3@meta.data$Cell_type<-mapvalues(Islet.scRNA.seurat3@meta.data$Cell_type,from=c("Acinar","Alpha","Alpha_proliferating","Beta","Delta","Duct","Endothelial","Epsilon","PP","PSC_active","PSC_proliferating","PSC_quiescent"),to=c("Acinar","Alpha","Alpha","Beta","Delta","Duct","Endothelial","Epsilon","PP","PSC","PSC","PSC"))
+  Secondary_Filtering.panel<-Islet.scRNA.seurat3@assays$RNA@counts[c("INS","GCG","PPY","SST","COL1A2","KRT19"),] %>% t() %>% as.data.frame() %>% Tomerge_v2(.,Islet.scRNA.seurat3@meta.data[,"Cell_type",drop=F])
+  INScut<-30  #10%
+  GCGcut<-20 #10%
+  PPYcut<-33 #10%
+  SSTcut<-57 #10%
+  COLcut<-2 #10%
+  KRTcut<-1 #10%
+  tofilter.names.alpha<-row.names(subset(Secondary_Filtering.panel,Cell_type=="Alpha"  & (GCG<GCGcut |PPY>PPYcut | SST >SSTcut | INS>INScut |COL1A2>COLcut| KRT19>KRTcut )))
+  tofilter.names.beta<-row.names(subset(Secondary_Filtering.panel,Cell_type=="Beta"  & (INS<INScut |PPY>PPYcut | SST >SSTcut | GCG>GCGcut |COL1A2>COLcut| KRT19>KRTcut)))
+  tofilter.names.delta<-row.names(subset(Secondary_Filtering.panel,Cell_type=="Delta"  & (SST<SSTcut |PPY>PPYcut | INS >INScut | GCG>GCGcut |COL1A2>COLcut| KRT19>KRTcut)))
+  tofilter.names.pp<-row.names(subset(Secondary_Filtering.panel,Cell_type=="PP"  & (PPY<PPYcut | INS>INScut | SST >SSTcut | GCG>GCGcut |COL1A2>COLcut| KRT19>KRTcut)))
+  tofilter.names.duct<-row.names(subset(Secondary_Filtering.panel,Cell_type=="Duct" & (KRT19<KRTcut| INS>INScut | SST >SSTcut | GCG>GCGcut | PPY >PPYcut | COL1A2>COLcut)))
+  tofilter.names.psc<-row.names(subset(Secondary_Filtering.panel,Cell_type=="PSC" & (COL1A2< COLcut |INS>INScut | SST >SSTcut | GCG>GCGcut | PPY >PPYcut | KRT19>KRTcut)))
+  tofilter.names.acinarPSC<-row.names(subset(Secondary_Filtering.panel,Cell_type %in% c("Acinar","Endothelial")  & (INS>INScut | SST >SSTcut | GCG>GCGcut | PPY >PPYcut)))
+  tofilter.names<-c(tofilter.names.alpha,tofilter.names.beta,tofilter.names.delta,tofilter.names.pp,tofilter.names.duct,tofilter.names.psc,tofilter.names.acinarPSC)
+
+  ##region Plot for supplementary fig1
+  tofilter.names.INS<-row.names(subset(Secondary_Filtering.panel, Cell_type!="Beta" &INS>INScut))
+  tofilter.names.GCG<-row.names(subset(Secondary_Filtering.panel, Cell_type!="Alpha" &GCG>GCGcut))
+  tofilter.names.PPY<-row.names(subset(Secondary_Filtering.panel, Cell_type!="PP" &PPY>PPYcut))
+  tofilter.names.SST<-row.names(subset(Secondary_Filtering.panel, Cell_type!="Delta" &SST>SSTcut))
+  tofilter.names.toplot<-list(tofilter.names.INS,tofilter.names.GCG,tofilter.names.SST,tofilter.names.PPY)
+ps<-list()
+for(i in 1:4){
+gene<-c("INS","GCG","SST","PPY")[i]
+FT<-tofilter.names.toplot[[i]]
+datatoplot<-ifelse(row.names(Secondary_Filtering.panel) %in% FT,"Remove","") %>% cbind(Secondary_Filtering.panel,tag=.)
+datatoplot$Cell_type<-factor(datatoplot$Cell_type,levels=c("Beta","Alpha","Delta","PP","Duct","Acinar","PSC","Endothelial"))
+datatoplot<-datatoplot[complete.cases(datatoplot),]
+p<-ggplot(datatoplot)+aes_string("Cell_type",gene,color="tag",size="tag")+geom_jitter()+scale_color_manual(values=c("black","red"))+scale_size_manual(values=c(0.1,0.6))#+theme_void()
+ps<-c(ps,list(p))
+}
+  setwd("Fig1.Clustering/")
+  png("Secondary.Filter.png",height=2000,width=2500,res=300)
+  grid.arrange(grobs=ps)
+  dev.off()
+  ##endregion Plot for supplementary fig1
+
+  # Generate Meta.data after secondary filtering
+  Islet.scRNA.seurat3.meta.filtered<-Islet.scRNA.seurat3@meta.data[!row.names(Islet.scRNA.seurat3@meta.data) %in% tofilter.names,] %>% subset(.,nCount_RNA>=1000)
+  Islet.Endo.scRNA.seurat3.meta.filtered<-subset(Islet.scRNA.seurat3.meta.filtered,Cell_type %in% c("Alpha","Beta","Delta","PP"))
+  # Clustering for all cells
+  Islet12.scRNA.seurat3.filtered<-docluster(Islet.scRNA.seurat3@assays$RNA@counts[,row.names(Islet.scRNA.seurat3.meta.filtered)],meta=Islet.scRNA.seurat3.meta.filtered,reso=0.6,nGene=2000,mincell=3,minfeature=200)
+  # Clustering for endocrine cells
+  names(Islet.Endo.scRNA.seurat3.meta.filtered)[5]<-"Donor"
+  Islet12.Endo.scRNA.seurat3.filtered<-docluster(Islet.scRNA.seurat3@assays$RNA@counts[,row.names(Islet.Endo.scRNA.seurat3.meta.filtered)],meta=Islet.Endo.scRNA.seurat3.meta.filtered[,c("Donor","Cell_type")],reso=0.6,nGene=1000,mincell=3,minfeature=200)
+  FindNeighbors(Islet12.scRNA.seurat3.filtered)
+  Islet12.Endo.scRNA.seurat3.filtered <- FindNeighbors(Islet12.Endo.scRNA.seurat3.filtered, dims = 1:20)
+  Islet12.Endo.scRNA.seurat3.filtered <- FindClusters(Islet12.Endo.scRNA.seurat3.filtered, resolution = 0.2)
+  Islet12.Endo.scRNA.seurat3.filtered <- RunUMAP(Islet12.Endo.scRNA.seurat3.filtered, dims = 1:20)
+  # Third filtering for endo
+  ThirdFilter<-subset(Islet12.Endo.scRNA.seurat3.filtered@meta.data,(Cell_type=="Alpha" & !RNA_snn_res.0.2 %in% c(1,2,3)) |(Cell_type=="Beta" & !RNA_snn_res.0.2 %in% c(0)) | (Cell_type=="PP" & !RNA_snn_res.0.2 %in% c(4))|(Cell_type=="Delta" & !RNA_snn_res.0.2 %in% c(5))) %>% row.names
+  CellsToKeep<-row.names(Islet12.Endo.scRNA.seurat3.filtered@meta.data)[!row.names(Islet12.Endo.scRNA.seurat3.filtered@meta.data) %in% ThirdFilter]
+  Islet12.Endo.scRNA.seurat3.filtered<-subset(Islet12.Endo.scRNA.seurat3.filtered,cells=CellsToKeep)
+  # Third filtering also filter for all cells
+  CellsToKeep<-row.names(Islet12.scRNA.seurat3.filtered@meta.data)[!row.names(Islet12.scRNA.seurat3.filtered@meta.data) %in% ThirdFilter]
+  Islet12.scRNA.seurat3.filtered<-subset(Islet12.scRNA.seurat3.filtered,cells=CellsToKeep)
+  #
+  Islet12.scRNA.seurat3.filtered@meta.data$Donor<-dic[Islet12.scRNA.seurat3.filtered@meta.data$Sample,]
+  Islet12.Endo.scRNA.seurat3.filtered@meta.data$DonorName<-dic[Islet12.Endo.scRNA.seurat3.filtered@meta.data$Donor,]
+  # Tovisulize the clustering
+  Tomerge_v2(Islet12.scRNA.seurat3.filtered@reductions$umap@cell.embeddings,Islet12.scRNA.seurat3.filtered@meta.data) %>% ggplot(.)+aes(UMAP_1,UMAP_2,color=Cell_type)+geom_point()
+  Tomerge_v2(Islet12.Endo.scRNA.seurat3.filtered@reductions$umap@cell.embeddings,Islet12.Endo.scRNA.seurat3.filtered@meta.data) %>% ggplot(.)+aes(UMAP_1,UMAP_2,color=Cell_type)+geom_point()
+  # Save the scRNA data adter cleaning
+  # saveRDS(Islet12.scRNA.seurat3.filtered,"mydir/Islet12.scRNA.seurat3.filtered")
+  # saveRDS(Islet12.Endo.scRNA.seurat3.filtered,"mydir/Islet12.Endo.scRNA.seurat3.filtered")
+  Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+  Islet12.Endo.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.Endo.scRNA.seurat3.filtered")
+  CelltypeCopo<-as.data.frame(table(Islet12.scRNA.seurat3.filtered@meta.data$Cell_type))
+  CelltypeCopo$ratio<-CelltypeCopo$Freq/sum(CelltypeCopo$Freq)
+  ##endregion Method1.1  Prepare scRNAseq data
+
+  ##region  2020-8-28-a CCA+SVM+KNN clustering with all cells 37780 cells
+   Islet12ALL.scATAC.FILTER<-readRDS("mydir/Islet12ALL.scATAC.FILTER")
+  # Islet12ALL.scATAC.FILTER<-readRDS("mydir/Islet12ALL.scATAC.FILTER.HiQ")
+  library(e1071)
+  Islet.scATAC.metadata.HiQ<-subset(Islet.scATAC.metadata,PeakRatio>0.25 & Fragments>2000)
+  Islet12ALL.scATAC.FILTER<-RunscATACclustering.Filter(Mergedset=Islet.scATAC.dac.biggenes.Mtx[,Islet.scATAC.metadata.HiQ$Name],atacmeta=Islet.scATAC.metadata.HiQ,ref=Islet12.scRNA.seurat3.filtered,cl="Cell_type")
+  saveRDS(Islet12ALL.scATAC.FILTER,"mydir/Islet12ALL.scATAC.FILTER.HiQ")
+  # saveRDS(Islet12ALL.scATAC.FILTER,"mydir/Islet12ALL.scATAC.FILTER")
+  Islet12ALL.scATAC.FILTER<-readRDS("mydir/Islet12ALL.scATAC.FILTER")
+  ## Step 1 Split the rna and atac
+  cca.rna<-Islet12ALL.scATAC.FILTER$cca.1000.L2normed[!grepl("TA:Z",row.names(Islet12ALL.scATAC.FILTER$cca.1000.L2normed)),]
+  cca.atac<-Islet12ALL.scATAC.FILTER$cca.1000.L2normed[grepl("TA:Z",row.names(Islet12ALL.scATAC.FILTER$cca.1000.L2normed)),]
+  cca.rna.celltype<-Tomerge_v2(cca.rna,Islet12.scRNA.seurat3.filtered@meta.data[,"Cell_type",drop=F])
+  ## Step2: Predict celltypes using the trained model SVM
+  # s<-sample(nrow(cca.rna.celltype),6000)
+  cca.rna.celltype_train<-cca.rna.celltype#[s,]
+  svmfit<-svm(Cell_type~.,data=cca.rna.celltype_train, kernel="radial",cost=10,scale=T)
+  p1<-predict(svmfit,cca.atac,type="class",decision.value=T) ##Actually
+  # saveRDS(p1,"mydir/p1.svm")
+  p1<-readRDS("mydir/p1.svm")
+  ## Step 3 Visulize on UMAP
+  myconfig<-umap.defaults
+  myconfig$a<-5
+  myconfig$b<-0.5
+  atacrna.umap<-umap(Islet12ALL.scATAC.FILTER$cca.1000.L2normed,config=myconfig)
+  Islet12.umap.meta<-data.frame(atacrna.umap$layout)
+  names(Islet12.umap.meta)<-c("UMAP1","UMAP2")
+  Islet12.umap.meta$tech<-ifelse(grepl("TA:Z",row.names(Islet12.umap.meta)),"ATAC","RNA")
+  Islet12.umap.meta<-Tomerge_v2(Islet12.umap.meta,Islet12.scRNA.seurat3.filtered@meta.data[,"Cell_type",drop=F],leavex=T)
+  Islet12.umap.meta<-Tomerge_v2(Islet12.umap.meta,data.frame(p1))
+  plot1<-Islet12.umap.meta[order(Islet12.umap.meta$tech,na.last=F),]%>% ggplot(.)+aes(UMAP1,UMAP2,color=Cell_type)+geom_point(size=0.5)+ guides(colour = guide_legend(override.aes = list(size=10)))+ggtitle("RNA CellType Label")
+  plot2<-subset(Islet12.umap.meta,tech=="ATAC") %>% ggplot(size=0.5)+aes(UMAP1,UMAP2,color=p1)+geom_point(size=0.5)+ guides(colour = guide_legend(override.aes = list(size=10)))+ggtitle("Predicted ATAC CellType Label")
+
+  SVM.KNN<-Tomerge_v2(subset(Islet12.umap.meta,tech=="ATAC"),Islet12ALL.scATAC.FILTER$DoubletsAnalysis[,c("First","Second","ratio","Fragments")])
+  # saveRDS(SVM.KNN,"mydir/SVM.KNN")
+  Doublets1<- subset(SVM.KNN,ratio<=2) %>% row.names
+  Doublets2<-subset(SVM.KNN,First %in% c("Beta","Alpha","PSC") & Second %in% c("Beta","Alpha","PSC")) %>% subset(.,ratio<=4) %>% row.names
+  Doublets3<-subset(SVM.KNN,First %in% c("PSC")) %>% subset(.,ratio<=100000) %>% row.names
+  Doublets5<-subset(SVM.KNN,First %in% c("Duct")) %>% subset(.,ratio<=100000) %>% row.names
+  Doublets4<-subset(SVM.KNN,First %in% c("Beta","Alpha","Delta","PP") & Second %in% c("PSC")) %>% subset(.,ratio<=16) %>% row.names
+  Doublets5<-subset(SVM.KNN,First %in% c("Alpha") & Second %in% c("PSC")) %>% subset(.,ratio<=100000) %>% row.names
+  Doublets6<-subset(SVM.KNN,First %in% c("PP") & Second %in% c("Alpha")) %>% subset(.,ratio<=4) %>% row.names
+  Doublets7<-subset(SVM.KNN,First %in% c("Beta","Alpha","Delta") & Second %in% c("Duct")) %>% subset(.,ratio<=16) %>% row.names
+  Doublets8<-subset(SVM.KNN,First %in% c("Beta","Alpha") & Second %in% c("Duct")) %>% subset(.,ratio<=100000) %>% row.names
+  # Doublets3<-subset(SVM.KNN,First %in% c("Beta","Alpha") & Second=="PSC") %>% subset(.,ratio<=100) %>% row.names
+  # Doublets4<-subset(SVM.KNN,First %in% c("Beta","Alpha") & Second=="PSC") %>% subset(.,ratio<=100) %>% row.names
+  SVM.KNN.filtered<-SVM.KNN[!row.names(SVM.KNN) %in% unique(c(Doublets1,Doublets2,Doublets3,Doublets4,Doublets5,Doublets6,Doublets7,Doublets8)),]
+  SVM.KNN.filtered<-SVM.KNN.filtered[as.character(SVM.KNN.filtered$p1)==as.character(SVM.KNN.filtered$First),]
+
+PSC.TominusAlpha<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="PSC",]),] %>% .[order(abs(.[,"Alpha/PSC"])),] %>% .[1:400,"Alpha/PSC"] %>% names  # Saved
+Alpha.TominusPSC<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Alpha",]),] %>% .[order(abs(.[,"Alpha/PSC"])),] %>% .[1:500,"Alpha/PSC"] %>% names # saved
+SVM.KNN.filtered<-SVM.KNN.filtered[!row.names(SVM.KNN.filtered) %in% c(Alpha.TominusPSC,PSC.TominusAlpha,PP.TominusAlpha),]
+SVM.KNN.filtered<-readRDS("mydir/SVM.KNN.filtered")
+PP.TominusAlpha<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="PP",]),] %>% .[order(abs(.[,"Alpha/PP"])),] %>% .[1:50,"Alpha/PP"] %>% names  # Not saved yet
+Duct.TominusAlpha<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Duct",]),] %>% .[order(abs(.[,"Alpha/Duct"])),] %>% .[1:800,"Alpha/Duct"] %>% names  #300
+Duct.TominusBeta<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Duct",]),] %>% .[order(abs(.[,"Beta/Duct"])),] %>% .[1:900,"Beta/Duct"] %>% names  #250
+Beta.TominusPSC<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Beta",]),] %>% .[order(abs(.[,"Beta/PSC"])),] %>% .[1:250,"Beta/PSC"] %>% names
+Alpha.TominusPSC<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Alpha",]),] %>% .[order(abs(.[,"Alpha/PSC"])),] %>% .[1:250,"Alpha/PSC"] %>% names
+Alpha.TominusDuct<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Alpha",]),] %>% .[order(abs(.[,"Alpha/Duct"])),] %>% .[1:250,"Alpha/Duct"] %>% names
+Delta.TominusDuct<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="Delta",]),] %>% .[order(abs(.[,"Duct/Delta"])),] %>% .[1:40,"Duct/Delta"] %>% names
+PSC.TominusAlpha<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="PSC",]),] %>% .[order(abs(.[,"Alpha/PSC"])),] %>% .[1:380,"Alpha/PSC"] %>% names
+# PSC.TominusBeta<-attr(p1,"decision.values")[row.names(SVM.KNN.filtered[SVM.KNN.filtered$p1=="PSC",]),] %>% .[order(abs(.[,"Beta/PSC"])),] %>% .[1:50,"Beta/PSC"] %>% names
+
+SVM.KNN.filtered.final<-SVM.KNN.filtered[!row.names(SVM.KNN.filtered) %in% c(PP.TominusAlpha,Duct.TominusAlpha,Duct.TominusBeta,Beta.TominusPSC,Alpha.TominusPSC,Alpha.TominusDuct,Delta.TominusDuct,PSC.TominusAlpha),]   #,PSC.TominusBeta
+# saveRDS(SVM.KNN.filtered.final,"mydir/SVM.KNN.filtered.final")
+
+  # Doublets4<-subset(SVM.KNN.filtered,p1 %in% c("Alpha","Beta","PSC","Duct") &Fragments<2000) %>% row.names
+  # SVM.KNN.filtered<-SVM.KNN.filtered[!row.names(SVM.KNN.filtered) %in% Doublets4,]
+  # saveRDS(SVM.KNN,"mydir/SVM.KNN")
+  # saveRDS(SVM.KNN.filtered,"mydir/SVM.KNN.filtered")
+SVM.KNN.filtered<-readRDS("mydir/SVM.KNN.filtered")
+SVM.KNN.filtered.final<-readRDS("mydir/SVM.KNN.filtered.final")
+
+##endregion  CCA+SVM+KNN clustering with all cells 37780 cells
+
+  ##region 2020-8-28-a Make tracks for defined 7 cell types
+#ALL data
+SVM.KNN.filtered.final.print<-SVM.KNN.filtered.final[,"p1",drop=F] %>% subset(.,!p1 %in% c("Endothelial","Epsilon"))
+
+write.table(SVM.KNN.filtered.final.print,"SVM.KNN.filtered.dic.Final.tab",quote=F,sep="\t",row.names=T,col.names=F)
+
+"
+~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step1.pl SVM.KNN.filtered.dic.Final.tab  SVM.KNN.filteredFinal
+~/Chip-seq/ATAC/scATAC/IsletscATAC/MakeTrack.Step2.sh Acinar.SVM.KNN.filteredFinal.bed Alpha.SVM.KNN.filteredFinal.bed Beta.SVM.KNN.filteredFinal.bed Delta.SVM.KNN.filteredFinal.bed Duct.SVM.KNN.filteredFinal.bed PP.SVM.KNN.filteredFinal.bed PSC.SVM.KNN.filteredFinal.bed
+"
+"
+track type=bigWig name=Acinar.SVM.KNN.filteredFinal.sorted.bw description=Acinar.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.Acinar.SVM.KNN.filteredFinal.sorted.bw color=255,0,0
+
+track type=bigWig name=Alpha.SVM.KNN.filteredFinal.sorted.bw description=Alpha.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.Alpha.SVM.KNN.filteredFinal.sorted.bw color=0,102,204
+
+track type=bigWig name=Beta.SVM.KNN.filteredFinal.sorted.bw description=Beta.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.Beta.SVM.KNN.filteredFinal.sorted.bw color=51,153,102
+
+track type=bigWig name=Delta.SVM.KNN.filteredFinal.sorted.bw description=Delta.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.Delta.SVM.KNN.filteredFinal.sorted.bw color=153,51,255
+
+track type=bigWig name=Duct.SVM.KNN.filteredFinal.sorted.bw description=Duct.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.Duct.SVM.KNN.filteredFinal.sorted.bw color=255,102,0
+
+track type=bigWig name=PP.SVM.KNN.filteredFinal.sorted.bw description=PP.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.PP.SVM.KNN.filteredFinal.sorted.bw color=204,102,0
+
+track type=bigWig name=PSC.SVM.KNN.filteredFinal.sorted.bw description=PSC.SVM.KNN.filteredFinal.sorted.bw visibility=full autoScale=on maxHeightPixels=100:20:15 bigDataUrl=http://intron.cwru.edu/~fxj45/CW/scATAC2019/tmp.PSC.SVM.KNN.filteredFinal.sorted.bw color=255,153,204
+
+"
+
+##endregion
+
+  ##region 2020-8-28-b Visulize the clustering umap
+  Islet.scATAC.dac.biggenes.Mtx<-readRDS("mydir/Islet.scATAC.dac.biggenes.Mtx")
+  Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+  Islet.scATAC.metadata<-read.table("~/Chip-seq/ATAC/scATAC/IsletscATAC/QC/Islet.scATAC.metadata")
+  row.names(Islet.scATAC.metadata)<-Islet.scATAC.metadata$Name
+  SVM.KNN.filtered<-readRDS("mydir/SVM.KNN.filtered")
+  CellToremove.1<-row.names(subset(SVM.KNN.filtered,p1 %in% c("Alpha","Beta","PSC","Duct") & Fragments<3000))
+  CellToremove.2<-row.names(rbind(subset(SVM.KNN.filtered,p1=="Alpha" &Second=="PP"),subset(SVM.KNN.filtered,p1=="Alpha" &Second=="Delta"),subset(SVM.KNN.filtered,p1=="Delta" &Second=="PP"),subset(SVM.KNN.filtered,p1=="PP" &Second=="Delta")))
+  CellToremove.3<-subset(SVM.KNN.filtered,p1=="Alpha" &ratio<10) %>% row.names
+  SVM.KNN.filtered.Visulize<-SVM.KNN.filtered[!row.names(SVM.KNN.filtered) %in% c(CellToremove.1,CellToremove.2,CellToremove.3),]
+Islet12.scRNA.seurat3.filtered.sub<-readRDS("mydir/Islet12.scRNA.seurat3.filtered.sub")
+Islet12ALL.coembed.Visulize<-RunscATACclustering.v2(Mergedset=Islet.scATAC.dac.biggenes.Mtx[,row.names(SVM.KNN.filtered.Visulize)],atacmeta=subset(Islet.scATAC.metadata,Name %in% row.names(SVM.KNN.filtered.Visulize)),ref=Islet12.scRNA.seurat3.filtered.sub,kw=25)
+Islet12ALL.coembed.Visulize[[1]] <- FindNeighbors(Islet12ALL.coembed.Visulize[[1]], dims = 1:30)
+Islet12ALL.coembed.Visulize[[1]] <- FindClusters(Islet12ALL.coembed.Visulize[[1]], resolution = 0.2)
+
+Islet12ALL.coembed.Visulize.meta<-Tomerge_v2(Islet12ALL.coembed.Visulize[[1]]@meta.data,SVM.KNN.filtered.Visulize[,"p1",drop=F]) %>% Tomerge_v2(.,Islet12ALL.coembed.Visulize[[1]]@reductions$umap@cell.embeddings)
+Islet12ALL.coembed.Visulize.meta.atac<-subset(Islet12ALL.coembed.Visulize.meta,tech=="ATAC")
+Islet12ALL.coembed.Visulize.meta.atac$Clustering.celltype<-mapvalues(Islet12ALL.coembed.Visulize.meta.atac$integrated_snn_res.0.2,from=c(0,8,11,1,6,4,5,2,3,7,9),to=c("Beta","Beta","Beta","Alpha","Alpha","PP|Delta","Delta","Duct","PSC","Acinar","Endothelial"))
+Islet12ALL.coembed.Visulize.meta.atac.filtered<-Islet12ALL.coembed.Visulize.meta.atac[apply(Islet12ALL.coembed.Visulize.meta.atac,1,function(x){grepl(x[16],x[13])}),]
+Final.filter<-c(row.names(subset(Islet12ALL.coembed.Visulize.meta.atac.filtered,p1=="Delta" & UMAP_1 > 2.5)),row.names(subset(Islet12ALL.coembed.Visulize.meta.atac.filtered,p1=="PP" & UMAP_1 < 0)))
+Islet12ALL.coembed.Visulize.meta.atac.filtered<-Islet12ALL.coembed.Visulize.meta.atac.filtered[!row.names(Islet12ALL.coembed.Visulize.meta.atac.filtered) %in% Final.filter,]
+Islet12ALL.coembed.Visulize<-readRDS("mydir/Islet12ALL.coembed.Visulize")
+Islet12ALL.coembed.Visulize.meta.atac.filtered<-readRDS("mydir/Islet12ALL.coembed.Visulize.meta.atac.filtered")
+p1data<-Tomerge_v2(Islet12ALL.coembed.Visulize[[1]]@reductions$umap@cell.embeddings,Islet12ALL.coembed.Visulize[[1]]@meta.data)
+CellToremove<-row.names(subset(p1data,tech=="ATAC"))[!row.names(subset(p1data,tech=="ATAC")) %in% row.names(Islet12ALL.coembed.Visulize.meta.atac.filtered)]
+p1data<-p1data[!row.names(p1data) %in% CellToremove,]
+
+p1<-ggplot(data=subset(p1data,tech!="ATAC"),aes(UMAP_1,UMAP_2,color=celltype))+geom_point(size=1)+theme_classic()+ guides(color = guide_legend(override.aes = list(size=5)))+scale_color_brewer(palette="Set1")+geom_point(data=subset(p1data,tech=="ATAC"),aes(UMAP_1,UMAP_2),color="azure3",size=1.2,alpha=0.25)+theme(axis.line=element_line(size=0.5),axis.title=element_blank(),axis.text=element_blank(),axis.ticks=element_blank())+ guides(color = guide_legend(override.aes = list(size=5)))
+
+p1data<-Tomerge_v2(p1data,Islet12ALL.coembed.Visulize.meta.atac.filtered[,"p1",drop=F],leavex=T)
+p1.highlightATAC<-ggplot(data=subset(p1data,tech!="RNA"),aes(UMAP_1,UMAP_2,color=p1))+geom_point(size=1)+theme_classic()+ guides(color = guide_legend(override.aes = list(size=5)))+scale_color_brewer(palette="Set1")+geom_point(data=subset(p1data,tech=="RNA"),aes(UMAP_1,UMAP_2),color="azure3",size=0.6,alpha=0.2)+theme(axis.line=element_line(size=0.5),axis.title=element_blank(),axis.text=element_blank(),axis.ticks=element_blank())+ guides(color = guide_legend(override.aes = list(size=5)))
+p2<-ggplot(Islet12ALL.coembed.Visulize.meta.atac.filtered)+aes(UMAP_1,UMAP_2,color=p1)+geom_point(size=1.2)+theme_classic()+theme(axis.line=element_line(size=0.5),axis.title=element_blank(),axis.text=element_blank(),axis.ticks=element_blank())+ guides(color = guide_legend(override.aes = list(size=5)))+scale_color_brewer(palette="Set1")
+setwd("Fig1.Clustering")
+png("Coembeding.ALL.png",height=1650,width=2000,res=300)
+print(p1)
+dev.off()
+
+png("Coembeding.ALL.HLatac.png",height=1650,width=2000,res=300)
+print(p1.highlightATAC)
+dev.off()
+
+png("Coembeding.ATAC.png",height=1650,width=2000,res=300)
+print(p2)
+dev.off()
+##endregion
+
+  ##region 2020-9-13-a Visulize TF motifs on the Umap
+library(Matrix.utils)
+library(chromVAR)
+library(SummarizedExperiment)
+library(Matrix)
+library(motifmatchr)
+library(universalmotif)
+library(TFBSTools)
+library(BSgenome.Hsapiens.UCSC.hg19)
+Islet.scATAC.metadata<-read.table("Islet.scATAC.metadata")
+row.names(Islet.scATAC.metadata)<-Islet.scATAC.metadata$Name
+hocomoco.motifsList<-readRDS("mydir/hocomoco.motifsList")
+Islet12ALL.coembed.Visulize.meta.atac.filtered<-readRDS("mydir/Islet12ALL.coembed.Visulize.meta.atac.filtered")
+SVM.KNN.filtered.final.print<-read.table("SVM.KNN.filtered.dic.Final.tab")
+names(SVM.KNN.filtered.final.print)<-c("Name","CellType")
+row.names(SVM.KNN.filtered.final.print)<-SVM.KNN.filtered.final.print$Name
+Islet.scATAC.dac.IsletALLPeak.reproducible<-read.table("Islet.scATAC.dac.IsletALLPeak.reproducible")
+names(Islet.scATAC.dac.IsletALLPeak.reproducible)<-c("Cell","Peak","Cts")
+ALLPeak.reproducible.Mtx<-dMcast(Islet.scATAC.dac.IsletALLPeak.reproducible,Peak~Cell)
+colnames(ALLPeak.reproducible.Mtx)<-gsub("Cell","",colnames(ALLPeak.reproducible.Mtx))
+# ALLPeak.reproducible.filtered.Mtx<-ALLPeak.reproducible.Mtx[,colnames(ALLPeak.reproducible.Mtx) %in% SVM.KNN.filtered.final.print$Name]
+ALLPeak.reproducible.filtered.Mtx<-ALLPeak.reproducible.Mtx[,colnames(ALLPeak.reproducible.Mtx) %in% row.names(Islet12ALL.coembed.Visulize.meta.atac.filtered)]
+ALLPeak.reproducible.filtered.Mtx<-ALLPeak.reproducible.filtered.Mtx[rowSums(ALLPeak.reproducible.filtered.Mtx)!=0,]
+
+Chr<-strsplit(row.names(ALLPeak.reproducible.filtered.Mtx),"_") %>% lapply(.,function(x){x[1]}) %>% unlist
+Start<-strsplit(row.names(ALLPeak.reproducible.filtered.Mtx),"_") %>% lapply(.,function(x){x[2]}) %>% unlist %>% as.numeric
+End<-strsplit(row.names(ALLPeak.reproducible.filtered.Mtx),"_") %>% lapply(.,function(x){x[3]}) %>% unlist %>% as.numeric
+peaks<-GRanges(Chr,strand="*",ranges=IRanges(start=Start,end=End))
+fragment_counts <- SummarizedExperiment(assays = list(counts = ALLPeak.reproducible.filtered.Mtx),rowRanges = peaks)
+# fragment_counts@colData<-Islet.scATAC.metadata[SVM.KNN.filtered.final.print$Name,] %>% DataFrame
+fragment_counts@colData<-Islet.scATAC.metadata[row.names(Islet12ALL.coembed.Visulize.meta.atac.filtered),] %>% DataFrame
+names(fragment_counts@colData)[2]<-"depth"
+fragment_counts <- addGCBias(fragment_counts, genome = BSgenome.Hsapiens.UCSC.hg19)
+counts_filtered <- filterPeaks(fragment_counts)
+row.names(counts_filtered@colData)<-counts_filtered@colData$Name
+motif_ix <- matchMotifs(hocomoco.motifsList, counts_filtered, genome = BSgenome.Hsapiens.UCSC.hg19)
+bg <- getBackgroundPeaks(object = counts_filtered)
+dev <- computeDeviations(object = counts_filtered, annotations = motif_ix,background_peaks = bg)
+# saveRDS(dev,"mydir/TFmotifdev")
+dev<-readRDS("mydir/TFmotifdev")
+MotifCellTypeList<-list()
+MotifCellTypeList.summary<-list()
+for (ref in c("Alpha","Acinar","Beta","Delta","Duct","PP","PSC"))
+{
+print(ref)
+pvalues<-c()
+slopes<-c()
+for(i in 1:nrow(dev@assays@data$z)){
+data<-Tomerge_v2(data.frame(z=dev@assays@data$z[i,]),SVM.KNN.filtered.final.print)
+data$CellType<-relevel(data$CellType,ref=ref)
+md<-lm(z~CellType,data=data)
+slopes<-rbind(slopes,md$coefficients[2:length(md$coefficients)])
+pvalues<-rbind(pvalues,summary(md)$coefficient[,4][2:length(md$coefficients)])
+}
+row.names(pvalues)<-row.names(dev@assays@data$z)
+row.names(slopes)<-row.names(dev@assays@data$z)
+MotifCellTypeList<-c(MotifCellTypeList,list(list(slopes=slopes,pvalues=pvalues)))
+summary<-data.frame(pvalues=apply(pvalues,1,function(x){exp(mean(log(x)))}),slopes=rowMeans(slopes))
+summary<-summary[order(summary$slopes),]
+MotifCellTypeList.summary<-c(MotifCellTypeList.summary,list(summary))
+}
+names(MotifCellTypeList)<-c("Alpha","Acinar","Beta","Delta","Duct","PP","PSC")
+names(MotifCellTypeList.summary)<-c("Alpha","Acinar","Beta","Delta","Duct","PP","PSC")
+# tocheck<-row.names(dev@assays@data$z)[grep("PPRX1|ETS1|KLF9|SNAI2|TCF4|ELF3|ZNF292|ATF3|EHF|PAX6|NEUROD1|MAFB|ARX|IRX2|ZNF85|FEV|INSM1|PDX1|MAFA|SIX3|ASCL2|HHEX|ASCL1|GRHL1|POU3F1|EGR3|STAT4|EGR2",row.names(dev@assays@data$z))]
+tocheck.alpha<-MotifCellTypeList.summary$Alpha %>% head(.,n=10) %>% row.names
+tocheck.beta<-MotifCellTypeList.summary$Beta %>% head(.,n=10) %>% row.names
+tocheck.delta<-MotifCellTypeList.summary$Delta %>% head(.,n=10) %>% row.names
+tocheck.PP<-MotifCellTypeList.summary$PP %>% head(.,n=10) %>% row.names
+tocheck.Duct<-MotifCellTypeList.summary$Duct %>% head(.,n=10) %>% row.names
+tocheck.acinar<-MotifCellTypeList.summary$Acinar %>% head(.,n=10) %>% row.names
+tocheck.PSC<-MotifCellTypeList.summary$PSC %>% head(.,n=10) %>% row.names
+allpss<-list()
+for(tocheck in list(tocheck.alpha,tocheck.beta,tocheck.delta,tocheck.PP,tocheck.Duct,tocheck.acinar,tocheck.PSC)){
+motiftoplot<-dev@assays@data$z[tocheck,] %>% t %>% as.data.frame %>% Tomerge_v2(.,counts_filtered@colData)
+motiftoplot<-Tomerge_v2(Islet12ALL.coembed.Visulize.meta.atac.filtered[,c("UMAP_1","UMAP_2")],motiftoplot)
+ps<-list()
+for(mtf in names(motiftoplot)[3:12]){
+p<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color=mtf)+geom_point(size=0.1)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(-1,2),oob=scales::squish)+theme_classic()
+ps<-c(ps,list(p))
+}
+allpss<-c(allpss,list(ps))
+}
+# saveRDS(allpss,"mydir/allpss")
+allpss<-readRDS("mydir/allpss")
+motiftoplot<-dev@assays@data$z[c("NEUROD1.MA1109.1","PDX1_HUMAN.H11MO.1.A","IRF1_HUMAN.H11MO.0.A","FOXA2_HUMAN.H11MO.0.A","EHF_HUMAN.H11MO.0.B","ELF3_HUMAN.H11MO.0.A","RUNX3_HUMAN.H11MO.0.A"),] %>% t %>% as.data.frame %>% Tomerge_v2(.,counts_filtered@colData)
+motiftoplot<-Tomerge_v2(Islet12ALL.coembed.Visulize.meta.atac.filtered[,c("UMAP_1","UMAP_2")],motiftoplot)
+
+p.neurod1<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color="NEUROD1.MA1109.1")+geom_point(size=1.8,alpha=0.5)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(-1.5,2),oob=scales::squish)+theme_void()
+p.pdx1<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color="PDX1_HUMAN.H11MO.1.A")+geom_point(size=1.8,alpha=0.5)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(-0.5,2.8),oob=scales::squish)+theme_void()
+# p.foxa2<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color="FOXA2_HUMAN.H11MO.0.A")+geom_point(size=0.8,alpha=0.5)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(-1,2),oob=scales::squish)+theme_classic()
+p.EHF<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color="EHF_HUMAN.H11MO.0.B")+geom_point(size=1.8,alpha=0.5)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(0.5,2),oob=scales::squish)+theme_void()
+# p.ELF3<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color="EHF_HUMAN.H11MO.0.B")+geom_point(size=0.8,alpha=0.5)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(0,2),oob=scales::squish)+theme_classic()
+
+p.RUNX<-ggplot(motiftoplot)+aes_string("UMAP_1","UMAP_2",color="RUNX3_HUMAN.H11MO.0.A")+geom_point(size=1.8,alpha=0.5)+scale_color_gradient(low="lightsteelblue1",high="darkred",limit=c(0.5,2),oob=scales::squish)+theme_void()
+setwd("~/Chip-seq/ATAC/scATAC/IsletscATAC/Fig1.Clustering")
+png("TF.umap.NEUROD.png",height=1650,width=2300,res=300)
+print(p.neurod1)
+dev.off()
+png("TF.umap.PDX1.png",height=1650,width=2300,res=300)
+print(p.pdx1)
+dev.off()
+png("TF.umap.EHF.png",height=1650,width=2300,res=300)
+print(p.EHF)
+dev.off()
+png("TF.umap.RUNX.png",height=1650,width=2300,res=300)
+print(p.RUNX)
+dev.off()
+
+  ##endregion
+
+  ##region 2020-8-28-c Visulize single-cell track examples
+setwd("~/Chip-seq/ATAC/scATAC/IsletscATAC")
+Islet.scATAC.dac.Bin5K.Mtx<-readRDS("mydir/Islet.scATAC.dac.Bin5K.Mtx")
+SVM.KNN.filtered.final<-readRDS("mydir/SVM.KNN.filtered.final")
+GenomicRange.Index<-read.table("~/Genome/hg19/hg19.genome_split_5000")
+Loci.df<-data.frame(Celltype=c("Beta","Alpha","Delta","PP","Duct","PSC","Acinar"),Loci=c("INS","GCG","SST","PPY","KRT19","COL1A2","REG1A"),Chr=c("chr11","chr2","chr3","chr17","chr17","chr7","chr2"),Starts=c(2143641,162976712,187361895,41988356,39667409,94015400,79334255),Ends=c(2209812,163029039,187416856,42053853,39695067,94065961,79363874))
+Loci.bed<-MakeBinBed(df=Loci.df,res=100)
+write.table(Loci.bed,"Islet12_7celltype.marker.100bp.bed",row.names=F,col.names=F,sep="\t",quote=F)
+## To generate signal in bins in bash
+"
+bedtools intersect -a Islet12_7celltype.marker.100bp.bed -b Islet12.ALL.Monoclonal.BC.sort.bed -wa -wb -loj > Islet12_7celltype.marker.100bp.monoclonal.beds
+"
+## Readin the overlapped bedfile and modify
+Islet12_7celltype.marker.100bp.monoclonal.beds<-read.table("Islet12_7celltype.marker.100bp.monoclonal.beds")
+Islet12_7celltype.marker.100bp.monoclonal<-data.frame(Pixel=Islet12_7celltype.marker.100bp.monoclonal.beds$V4,Cell=Islet12_7celltype.marker.100bp.monoclonal.beds$V8,Signal=1)
+Islet12_7celltype.marker.100bp.monoclonal.Mtx<-dMcast(Islet12_7celltype.marker.100bp.monoclonal,Pixel~Cell)
+colnames(Islet12_7celltype.marker.100bp.monoclonal.Mtx)<-gsub("Cell","",colnames(Islet12_7celltype.marker.100bp.monoclonal.Mtx))
+## To prepare for plotting
+colors<-c(rgb(51,153,102,maxColorValue=255),rgb(0,102,204,maxColorValue=255),rgb(153,51,255,maxColorValue=255),rgb(204,102,0,maxColorValue=255),rgb(255,102,0,maxColorValue=255),rgb(255,153,204,maxColorValue=255),rgb(255,0,0,maxColorValue=255))
+Celltypes<-c("Beta","Alpha","Delta","PP","Duct","PSC","Acinar")
+ps<-list()
+for(i in 1:7){
+Celltype.focus=Celltypes[i]
+TopN=200
+TopCells<-subset(SVM.KNN.filtered.final,p1==Celltype.focus) %>% .[order(.$Fragments,decreasing=T),] %>% head(.,n=TopN) %>% row.names
+Selected.MTX<-Islet12_7celltype.marker.100bp.monoclonal.Mtx[,colnames(Islet12_7celltype.marker.100bp.monoclonal.Mtx) %in% TopCells]
+Selected.MTX.long<-melt(as.matrix(Selected.MTX))
+Selected.MTX.long<-strsplit(as.character(Selected.MTX.long$Var1),"_") %>% do.call(rbind,.)  %>% cbind(Selected.MTX.long,.)
+names(Selected.MTX.long)<-c("Binname","Cell","Signal","Loci","BinN")
+Selected.MTX.long$BinN<-as.numeric(as.character(Selected.MTX.long$BinN))
+Selected.MTX.long$Signal[Selected.MTX.long$Signal>1]<-1
+Selected.MTX.long$Signal<-as.factor(Selected.MTX.long$Signal)
+Selected.MTX.long$Loci<-factor(Selected.MTX.long$Loci,levels=c("INS","GCG","SST","PPY","KRT19","COL1A2","REG1A"))
+p<-ggplot(Selected.MTX.long)+aes(BinN,Cell,fill=Signal)+geom_tile()+facet_grid(~Loci,scales="free")+scale_fill_manual(values=c("white",colors[i]))+theme_void()+theme(panel.border=element_rect(size=0.2,color="grey90",fill=NA),legend.position="null")
+ps<-c(ps,list(p))
+}
+## To plot
+setwd("Fig1.Clustering")
+png("Beta.scTrack.png",height=600,width=5000,res=300)
+print(ps[[1]])
+dev.off()
+png("Alpha.scTrack.png",height=600,width=5000,res=300)
+print(ps[[2]])
+dev.off()
+png("Delta.scTrack.png",height=600,width=5000,res=300)
+print(ps[[3]])
+dev.off()
+png("PP.scTrack.png",height=600,width=5000,res=300)
+print(ps[[4]])
+dev.off()
+png("Duct.scTrack.png",height=600,width=5000,res=300)
+print(ps[[5]])
+dev.off()
+png("PSC.scTrack.png",height=600,width=5000,res=300)
+print(ps[[6]])
+dev.off()
+png("Acinar.scTrack.png",height=600,width=5000,res=300)
+print(ps[[7]])
+dev.off()
+##endregion
+
+  ##region 2020-8-28-c Visulize signature gene RNA expression
+Islet12ALL.coembed.Visulize<-readRDS("mydir/Islet12ALL.coembed.Visulize")
+Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+
+# To get endothelial markers ident<-Islet12.scRNA.seurat3.filtered@meta.data$Cell_type
+# names(ident)<-row.names(Islet12.scRNA.seurat3.filtered@meta.data)
+# Islet12.scRNA.seurat3.filtered@active.ident<-ident
+# Endothelial.markers <- FindMarkers(Islet12.scRNA.seurat3.filtered, ident.1 = "Endothelial", min.pct = 0.25)
+
+RNASig.tiplot<-t(Islet12.scRNA.seurat3.filtered@assays$RNA@scale.data[c("INS","GCG","SST","PPY","KRT19","COL1A2","REG1A","FLT1","ANGPT2"),]) %>% Tomerge_v2(.,Islet12ALL.coembed.Visulize[[1]]@reductions$umap@cell.embeddings) %>% .[complete.cases(.),]
+setwd("Fig1.Clustering")
+for(gene in c("INS","GCG","SST","PPY","KRT19","COL1A2","REG1A","FLT1")){
+png(paste(gene,"RNA.png",sep="."),height=2000,width=2100,res=300)
+p<-ggplot(RNASig.tiplot)+aes_string("UMAP_1","UMAP_2",color=gene)+geom_point()+scale_color_gradient(low="azure3",high="red")+theme_void()
+print(p)
+dev.off()
+}
+##endregion
+
+    ##region  Cells filtered by KNN(ratio>2) Louvain clustering
+    Islet12ALL.scATAC.FILTER.24926.dist<-dist(Islet12ALL.scATAC.FILTER.24926$cca.1000.L2normed)
+    Islet12ALL.scATAC.FILTER.24926.snn<-FindNeighbors(Islet12ALL.scATAC.FILTER.24926.dist,k.param = 20,compute.SNN = TRUE,prune.SNN = 1/15,nn.method = "rann",annoy.metric = "euclidean",nn.eps = 0,verbose = TRUE,force.recalc = FALSE,)
+    Islet12ALL.scATAC.FILTER.24926.cluster.res.0.1<-FindClusters(Islet12ALL.scATAC.FILTER.24926.snn$snn,resolution = 0.1)
+    atacrna.umap.24926.louvain<-Tomerge_v2(atacrna.umap.24926,Islet12ALL.scATAC.FILTER.24926.cluster.res.0.1)
+    plot<-subset(atacrna.umap.24926.louvain,tech=="ATAC") %>% ggplot(size=0.5)+aes(V1,V2,color=p1)+geom_point(size=0.5)+ guides(colour = guide_legend(override.aes = list(size=10)))+ggtitle("Louvain ATAC CellType Label")
+    ## Step 4 Bulk marker examination
+    Ref<-data.frame(GENE=c("INS","IAPP","GCG","ARX","SST","PPY","COL1A2","SPARC","CFTR","KRT19","REG3A","REG1A"),CELL=c("Alpha|Beta","Alpha|Beta","Alpha|Beta","Alpha|Beta","Delta","PP","PSC","PSC","Duct","Duct","Acinar","Acinar"))
+    row.names(Ref)<-Ref$GENE
+    atacrna.umap.24926.louvain$res.0.1.celltype<-mapvalues(atacrna.umap.24926.louvain$res.0.1,from=c(0,1,2,3,4,5,6),to=c("Alpha|Beta","PSC","Duct","Delta","PP","Acinar","Endothelial"))
+    BulkReads.scale.all.24926Lovain<-AggregateScale(df=subset(atacrna.umap.24926.louvain,!is.na(atacrna.umap.24926.louvain$p1)) %>% subset(.,p1 !="Epsilon"),col="res.0.1.celltype",rawobj=Islet.scATAC.dac.biggenes.Mtx)
+    QC.df<-BulkReads.scale.all.24926Lovain[c("INS","IAPP","GCG","ARX","SST","PPY","COL1A2","SPARC","CFTR","KRT19","REG3A","REG1A"),]
+    Fold<-data.frame(GENE=Ref$GENE)
+    fold<-c()
+    for(gene in Ref$GENE){
+    fold<-c(fold,QC.df[gene,colnames(QC.df)==Ref[gene,"CELL"]]/mean(QC.df[gene,colnames(QC.df)!=Ref[gene,"CELL"]]))
+    }
+    Fold$fold<-fold
+    #Plot
+    DataToPlot<-melt(QC.df)
+    DataToPlot$Var2<-factor(DataToPlot$Var2,levels=c("Alpha|Beta","Delta","PP","PSC","Duct","Acinar","Endothelial"))
+    p.bulkReads<-ggplot(DataToPlot)+aes(Var2,value,fill=Var2)+geom_bar(stat="identity")+facet_grid(Var1~.,scales="free")+theme_bw()
+    grid.arrange(p.bulkReads,tableGrob(Fold),nrow=1)
+    ##endregion
+
+
+  ##region 2020-11-26 cell-type composition bar plot
+  ##RNA
+  Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+  Islet12.scRNA.seurat3.filtered@meta.data$Donor<-mapvalues(Islet12.scRNA.seurat3.filtered@meta.data$Donor,from=c("HT1","HT2","HT3","HT4","HT5","HT6","HT7","HT8","T2D1","T2D3","T2D4","T2D5"),to=c("HT1",NA,"HT2","HT3","HT4","HT5","HT6","HT7","T2D1","T2D2","T2D3","T2D4"))
+  CellCompo.RNA.m<-Islet12.scRNA.seurat3.filtered@meta.data[,c("Donor","Cell_type")] %>% table %>% as.matrix %>% apply(.,1,function(x){x/sum(x)}) %>% t %>% melt()
+  CellCompo.RNA.m$Cell_type<-factor(CellCompo.RNA.m$Cell_type,levels=c("Beta","Alpha","Delta","PP","Duct","PSC","Acinar","Endothelial"))
+  p1<-ggplot(CellCompo.RNA.m)+aes(Donor,value,fill=Cell_type)+geom_bar(stat="identity")+scale_fill_manual(values=  brewer.pal("Set1",n=9)[c(3,2,4,7,5,8,1,6)])
+  Islet.scATAC.metadata<-read.table("Islet.scATAC.metadata")
+  row.names(Islet.scATAC.metadata)<-Islet.scATAC.metadata$Name
+  Islet.scATAC.metadata$donor<-mapvalues(Islet.scATAC.metadata$donor,from=c("HT1","HT2","HT3","HT4","HT5","HT6","HT7","HT8","T2D1","T2D3","T2D4","T2D5"),to=c("HT1",NA,"HT2","HT3","HT4","HT5","HT6","HT7","T2D1","T2D2","T2D3","T2D4"))
+  SVM.KNN.filtered<-readRDS("mydir/SVM.KNN.filtered")
+  CellCompo.ATAC.m<-Tomerge_v2(SVM.KNN.filtered,Islet.scATAC.metadata[,"donor",drop=F]) %>%  .[,c("donor","p1")] %>% table %>% as.matrix %>% apply(.,1,function(x){x/sum(x)}) %>% t %>% melt()
+  CellCompo.ATAC.m.KNN7.2<-subset(SVM.KNN,as.character(p1)==as.character(First)) %>% subset(.,ratio>7.2) %>% .[,c("donor","p1")] %>% table %>% as.matrix %>% apply(.,1,function(x){x/sum(x)}) %>% t %>% melt()
+  CellCompo.ATAC.m.KNN7.2$p1<-factor(CellCompo.ATAC.m.KNN7.2$p1,levels=c("Beta","Alpha","Delta","PP","Duct","PSC","Acinar","Endothelial"))
+  # CellCompo.ATAC.m$p1<-factor(CellCompo.ATAC.m$p1,levels=c("Beta","Alpha","Delta","PP","Duct","PSC","Acinar","Endothelial"))
+  # p2<-ggplot(CellCompo.ATAC.m)+aes(donor,value,fill=p1)+geom_bar(stat="identity")+scale_fill_manual(values=  brewer.pal("Set1",n=9)[c(3,2,4,7,5,8,1,6)])
+  p2.KNN7.2<-ggplot(CellCompo.ATAC.m.KNN7.2)+aes(donor,value,fill=p1)+geom_bar(stat="identity")+scale_fill_manual(values=  brewer.pal("Set1",n=9)[c(3,2,4,7,5,8,1,6)])
+  setwd("Fig1.Clustering")
+  pdf("Cell_type.Composition.barKNN7.2.pdf",width=12)
+  print(p1)
+  print(p2.KNN7.2)
+  dev.off()
+  ##endregion
+
+  ##region Supplementary Fig1, clustering QC
+
+    ##region Basic QCplots
+    TSSfilenames<-list.files()[grep("TSS",list.files())]
+    df.all<-data.frame()
+    for (file in TSSfilenames){
+    df<-read.table(file)
+    names(df)<-c("Name","Fragments","FragTSS","FragPeak")
+    df$PeakRatio<-df$FragPeak/df$Fragments
+    df.all<-rbind(df.all,df)
+    }
+    ps.sizes<-data.frame()
+    monobedfilenames<-list.files()[grep("monocloal.bed",list.files())]
+    for (file in monobedfilenames){
+      print(file)
+    df<-read.table(file)
+    df.sub<-df[sample(1:nrow(df),100000),]
+    ps.sizes<-rbind(ps.sizes,df.sub)
+    }
+    ps.sizes$sizes<-ps.sizes$V3-ps.sizes$V2
+    p.gragmentSize<-ggplot(ps.sizes)+aes(sizes)+geom_density()+theme_classic()
+    p.fragmentN<-ggplot(df.all)+aes(log10(Fragments))+geom_histogram(color="black",fill="white")+xlim(0,6)+theme_classic()+geom_vline(xintercept=3,linetype=2,size=1)
+    setwd("Fig1.Clustering")
+    pdf("scATAC.basicQC.Fragments.pdf",height=5)
+    print(p.fragmentN)
+    print(p.gragmentSize)
+    dev.off()
+    png("scATAC.basicQC.png",height=2000,width=2400,res=300)
+    ggplot(Islet.scATAC.metadata)+aes(PeakRatio,FragTSS/Fragments)+geom_point(size=0.01)+stat_density2d(aes(fill=..level..),alpha=0.4,geom='polygon',color='black')+scale_fill_gradient(low="green",high="red")+theme_bw()+xlim(0,1)+ylim(0,1)+geom_vline(xintercept=0.15,linetype=2)
+    dev.off()
+    ##endregion
+
+    ##region Filtering strategy for scATAC
+SVM.KNN<-readRDS("mydir/SVM.KNN")
+SVM.KNN<-Tomerge_v2(SVM.KNN,Islet.scATAC.metadata[,"donor",drop=F]) %>% .[!is.na(.$donor),]
+subset(SVM.KNN,as.character(p1)==as.character(First)) %>% ggplot(.)+aes(p1,ratio)+geom_boxplot()+geom_jitter(size=0.1)+geom_hline(yintercept=2,color="red")
+
+ps<-list()
+# threhold=c(7.5,6.75,7.75,7.5,7.25,7.25,8.25,)
+threahold<-7.2
+for(CT in c("Beta","Alpha","Delta","PP","Duct","PSC","Acinar","Endothelial")){
+test<-subset(SVM.KNN,as.character(p1)==as.character(First)) %>% subset(.,p1==CT)
+CellN<-dim(subset(test,ratio>threahold))
+test$ratio[is.infinite(test$ratio)]<-max(test$ratio[!is.infinite(test$ratio)])+5
+p<-ggplot(test)+aes(ratio)+geom_histogram(binwidth=0.5,color="black")+ggtitle(paste(CT,CellN,sep=":"))+geom_vline(xintercept=threahold,linetype=2)+theme_bw()
+ps<-c(ps,list(p))
+}
+pdf("scATACfiltering.pdf")
+grid.arrange(grobs=ps)
+dev.off()
+  ##endregion Filtering strategy
+
+    ##region Gene/Transcripts/Fragments summary for each donor (Not used)
+  Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+  SVM.KNN<-readRDS("mydir/SVM.KNN")
+  SVM.KNN<-Tomerge_v2(SVM.KNN,Islet.scATAC.metadata[,"donor",drop=F]) %>% .[!is.na(.$donor),] %>% subset(.,as.character(p1)==as.character(First) & ratio>7.2)
+
+    ##endregion
+
+    ##region DE gene consistency
+    source("~/Dropseq/Entrance/Esderived/Esdrived_DGE/AttemptFrom17.8.28/Revision2020/Newfun.R")
+  Islet12.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.scRNA.seurat3.filtered")
+  Aggregate.7celltype.RNA.rpkm<-readRDS("mydir/Aggregate.7celltype.RNA.rpkm")
+  ##Filter by max rpkm(max cell type should be larger than 10)
+  RPKM.max<-as.matrix(Aggregate.7celltype.RNA.rpkm[,1:7]) %>% apply(.,1,max)
+  Expressing.genes<-names(RPKM.max)[RPKM.max>10]
+  MAXENdoVSNonendo.RNA<-as.matrix(Aggregate.7celltype.RNA.rpkm[,1:7])  %>% apply(.,1,function(x){(max(x[1:4]/max(x[5:7])))}) %>% .[complete.cases(.)]
+  Endocrine.genes<-intersect(names(MAXENdoVSNonendo.RNA)[MAXENdoVSNonendo.RNA>2],Expressing.genes)
+  NonEndocrine.genes<-intersect(names(MAXENdoVSNonendo.RNA)[MAXENdoVSNonendo.RNA<0.5],Expressing.genes)
+  Endocrine.genes<-readRDS("mydir/Endocrine.genes")
+  NonEndocrine.genes<-readRDS("mydir/NonEndocrine.genes")
+  set.seed(1)
+  RNA.endo.kcl<-Kcluster.Z(Aggregate.7celltype.RNA.rpkm[Endocrine.genes,],k=15)
+  RNA.endo.kcl$datatoplot$group<-factor(RNA.endo.kcl$datatoplot$group,levels=c(12,13,6,8,11,10,2,9,1,5,7,4,14,15,3))
+  p.rna.endo.new12<-RNA.endo.kcl$datatoplot %>% ggplot(.)+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limit=c(-2,2),oob=scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())+theme_void()+theme(panel.spacing=unit(0,"line"))
+  set.seed(1)
+  RNA.non.kcl<-Kcluster.Z(Aggregate.7celltype.RNA.rpkm[NonEndocrine.genes,],k=6)
+  RNA.non.kcl$datatoplot$group<-factor(RNA.non.kcl$datatoplot$group,level=c(3,4,1,2,6,5))
+  p.rna.non.new12<-ggplot(RNA.non.kcl$datatoplot)+aes(variable,peaks,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limit=c(-2,2),oob=scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())+theme_void()+theme(panel.spacing=unit(0,"line"))
+  SeuratALL.filtered.0.6<-readRDS("/mnt/rstor/genetics/JinLab/cxw486/Dropseq/DGEanalysis/Islet412+511+919+T2D1+S4/workplaceLink/2017.9.21.revise/927.All.filtered.ob")
+
+  alpha<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="allAlpha"))] %>% as.matrix %>% rowSums
+  beta<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="allBeta"))] %>% as.matrix %>% rowSums
+  delta<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="delta"))] %>% as.matrix %>% rowSums
+  pp<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="pp"))] %>% as.matrix %>% rowSums
+  duct<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="duct"))] %>% as.matrix %>% rowSums
+  acinar<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="Acinar"))] %>% as.matrix %>% rowSums
+  psc<-SeuratALL.filtered.0.6@raw.data[,row.names(subset(SeuratALL.filtered.0.6@data.info,celltype1=="psc"))] %>% as.matrix %>% rowSums
+  Old9.Aggregate.7celltype.RNA.cts<-data.frame(beta,delta,alpha,pp,duct,acinar,psc)
+  Old9.Aggregate.7celltype.RNA.rpkm<-apply(Old9.Aggregate.7celltype.RNA.cts,2,function(x){1e6*x/sum(x)})
+  # Old9.endo.datatoplot<-Tomerge_v2(Old9.Aggregate.7celltype.RNA.rpkm[Endocrine.genes[Endocrine.genes %in% c(row.names(Old9.Aggregate.7celltype.RNA.rpkm))],],RNA.endo.kcl$data[,"group",drop=F])
+  Old9.endo.datatoplot<-Old9.Aggregate.7celltype.RNA.rpkm[Endocrine.genes[Endocrine.genes %in% c(row.names(Old9.Aggregate.7celltype.RNA.rpkm))],] %>% apply(.,1,scale) %>% t %>% Tomerge_v2(.,RNA.endo.kcl$data[,"group",drop=F])
+  Old.endo.datatoplot.m<-cbind(Old9.endo.datatoplot,Gene=row.names(Old9.endo.datatoplot)) %>% melt(.,id.vars=c("group","Gene"))
+  Old.endo.datatoplot.m$group<-factor(Old.endo.datatoplot.m$group,levels=c(12,13,6,8,11,10,2,9,1,5,7,4,14,15,3))
+  p.rna.endo.old9<-ggplot(Old.endo.datatoplot.m)+aes(variable,Gene,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limit=c(-2,2),oob=scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())+theme(panel.spacing=unit(0,"line"))
+
+  Old9.non.datatoplot<-Old9.Aggregate.7celltype.RNA.rpkm[NonEndocrine.genes[NonEndocrine.genes %in% c(row.names(Old9.Aggregate.7celltype.RNA.rpkm))],] %>% apply(.,1,scale) %>% t %>% Tomerge_v2(.,RNA.non.kcl$data[,"group",drop=F])
+  Old.non.datatoplot.m<-cbind(Old9.non.datatoplot,Gene=row.names(Old9.non.datatoplot)) %>% melt(.,id.vars=c("group","Gene"))
+  Old.non.datatoplot.m$group<-factor(Old.non.datatoplot.m$group,level=c(3,4,1,2,6,5))
+  p.rna.non.old9<-ggplot(Old.non.datatoplot.m)+aes(variable,Gene,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red",limit=c(-2,2),oob=scales::squish)+facet_grid(group~.,scales="free",space="free")+theme(axis.text.y=element_blank())+theme(panel.spacing=unit(0,"line"))+theme(panel.spacing=unit(0,"line"))
+  pdf("RNA.rpkm.newVSold.pdf")
+  p.rna.endo.new12
+  p.rna.non.new12
+  p.rna.endo.old9
+  p.rna.non.old9
+  dev.off()
+    ##endregion
+
+
+  ##endregion Supplementary Fig1, clustering QC
+
+##endregion ##2020-8-11 benchmark scATAC clustering

@@ -1,0 +1,64 @@
+##region Step 7 Run RNA rePACT (with cell number balancing)
+  ## Recluster beta cells
+  Islet12.Endo.scRNA.seurat3.filtered<-readRDS("mydir/Islet12.Endo.scRNA.seurat3.filtered")
+  Islet12.Beta.meta<-Islet12.Endo.scRNA.seurat3.filtered@meta.data %>% subset(.,Cell_type=="Beta") %>% .[,c("nCount_RNA","nFeature_RNA","Donor","Cell_type","DonorName")]
+  Islet12.Beta.scRNA.seurat3<-docluster(Islet12.Endo.scRNA.seurat3.filtered@assays$RNA@counts[,row.names(Islet12.Beta.meta)],meta=Islet12.Beta.meta[,c("Donor","DonorName")],reso=0.6,nGene=2000,mincell=3,minfeature=200)
+  # saveRDS(Islet12.Beta.scRNA.seurat3,"mydir/Islet12.Beta.scRNA.seurat3")
+  Islet12.Beta.scRNA.seurat3<-readRDS("mydir/Islet12.Beta.scRNA.seurat3")
+  BetaPCA<-Islet12.Beta.scRNA.seurat3@reductions$pca@cell.embeddings %>% Tomerge_v2(.,Islet12.Beta.scRNA.seurat3@meta.data)
+  BetaPCA$Disease<-gsub("[0-9]$","",toplot$DonorName)
+  BetaPCA<-subset(BetaPCA,DonorName!="T2D2")
+  BetaPCA$DonorName<-mapvalues(BetaPCA$DonorName,from=c("HT1","HT2","HT3","HT4","HT5","HT6","HT7","HT8","T2D1","T2D3","T2D4","T2D5"),to=c("HT1",NA,"HT2","HT3","HT4","HT5","HT6","HT7","T2D1","T2D2","T2D3","T2D4"))
+  ## L2 normalization for PCA
+  BetaPCA<-BetaPCA[,1:50] %>% apply(.,2,function(x){x/sqrt(sum(x^2))}) %>% cbind(.,BetaPCA[,51:58])
+  ## Balancing the cell numbers and calculate pseudoindex
+  beta.rna.pca.withinfo.subs<-list()
+  for(i in 1:100){
+  beta.rna.pca.withinfo.sub<-c()
+  for (d in levels(BetaPCA$DonorName)){
+    tmp<-subset(BetaPCA,DonorName==d)
+    if(nrow(tmp)<=200){
+      beta.rna.pca.withinfo.sub<-rbind(beta.rna.pca.withinfo.sub,tmp)
+    }else{
+      beta.rna.pca.withinfo.sub<-rbind(beta.rna.pca.withinfo.sub,tmp[sample(1:nrow(tmp),200),])
+    }
+  }
+  beta.rna.pca.withinfo.subs<-c(beta.rna.pca.withinfo.subs,list(beta.rna.pca.withinfo.sub))
+  }
+  pseudo.indexes<-list()
+  for(i in 1:100){
+  md<-GetRePACTmodel.cca(ccaWithinfo=beta.rna.pca.withinfo.subs[[i]],prefix="PC",pheno="Disease",CCrange=c(1:10))
+  trainingdata<-beta.rna.pca.withinfo.subs[[i]]
+  Restdata<-BetaPCA[setdiff(row.names(BetaPCA),row.names(beta.rna.pca.withinfo.subs[[i]])),]
+  Alldata<-BetaPCA
+  beta.rna.pca.withinfo.subs[[i]]$pseudo.index<-apply(trainingdata[,1:10],1,function(x){md$coefficients[[1]]+sum(x*md$coefficients[2:11])})
+  Restdata$pseudo.index<-apply(Restdata[,1:10],1,function(x){md$coefficients[[1]]+sum(x*md$coefficients[2:11])})
+  pseudo.indexes<-c(pseudo.indexes,list(apply(Alldata[,1:10],1,function(x){md$coefficients[[1]]+sum(x*md$coefficients[2:11])})))
+  }
+  ## Note: consistency betweeb random shuffles,good!
+  BetaPCA$pseudo.index.balanced<-do.call(cbind,pseudo.indexes) %>% rowMeans()
+  ##Plot 3D PCA plot
+#     adjustrange = seq(0, 180, length.out = 13)
+#     library(plot3D)
+#     pdf("multiplot3D.pdf")
+#               for (i in adjustrange) {
+#                   for (j in adjustrange) {
+#                     title <- paste("test", "theta=", i, "phi=",
+#                       j)
+#                     scatter3D(BetaPCA[,"PC_4"], BetaPCA[,"PC_5"],BetaPCA[,"PC_7"],ticktype = "detailed", pch = 20, theta = i, phi = j, colvar = ifelse(BetaPCA[,"Disease"]=="T2D",1,0), bty = "b2", cex = 0.6, col = alpha.col(col = c("blue", "brown"), 0.6))
+#                   }
+#               }
+#       dev.off()
+# pdf("RNA.RePACT.plot3D.pdf")
+#   scatter3D(BetaPCA[,"PC_4"], BetaPCA[,"PC_5"],BetaPCA[,"PC_7"],ticktype = "detailed", pch = 20, theta = 150, phi = 180, colvar = ifelse(BetaPCA[,"Disease"]=="T2D",1,0), bty = "b2", cex = 0.6, col = alpha.col(col = c("blue", "brown"), 0.6))
+# dev.off()
+  ## Plot violin pseudoindex
+  p1<-ggplot(BetaPCA)+aes(DonorName,pseudo.index.balanced,fill=Disease)+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("blue", "brown"))+theme_bw()+theme(legend.position="none")
+  p2<-ggplot(BetaPCA)+aes(pseudo.index.balanced,fill=Disease)+geom_density(alpha=0.75)+scale_fill_manual(values=c("blue","brown"))+theme_classic()+theme(legend.position="none")
+  pdf("Beta.RNA.RePACT.violin.pdf",height=5)
+  print(p1)
+  print(p2)
+  dev.off()
+  ## Calculate p values
+  ks.test(subset(BetaPCA,Disease=="HT")$pseudo.index.balanced,subset(BetaPCA,Disease=="T2D")$pseudo.index.balanced)
+##endregion
