@@ -7,7 +7,7 @@ It can identify:<br />
 
 Please cite: <br /> 
 - [Single-Cell Heterogeneity Analysis and CRISPR Screen Identify Key β-Cell-Specific Disease Genes. Zhou & Chen et al,2019](https://doi.org/10.1016/j.celrep.2019.02.043) 
-- Single cell multi-omics analysis reveals diabetes-associated β-cell heterogeneity in human islets (In preparation)
+- Single cell multi-omics analysis reveals diabetes-associated β-cell heterogeneity in human islets (under revision)
 
 ## Install
 ```
@@ -55,64 +55,80 @@ The OBJ@meta.data should contain a "Sample" column and a column to compare using
 ## RePACT on scRNA-seq
 Examples to run RePACT on the downloaded Seurat object.
 ```
-scRNA.OBJ <- readRDS("../Old9.Beta.scRNA.rds")
-T2D.scRNA.RePACT <- repact.scRNA(scRNA.OBJ, PCrange=1:20,pheno="diseaseStat",is_continuous="F",norm_index=T,SlopeCut=0.05,output_name2="T2D_Beta.scRNA.RePACT")
-
-p1 <- ggplot(T2D.scRNA.RePACT$RepACT.obj$PCanfpheno %>% .[complete.cases(.),])+aes_string("Sample","pseudo.index",group="Sample",fill=pheno)+geom_violin()+coord_flip()+scale_fill_manual(values=c("blue", "red"))+theme_classic()
-p2 <- Do_heatmap(T2D.scRNA.RePACT$RepACT.2nd.ob$bin.data,df1=T2D.scRNA.RePACT$RepACT.2nd.ob$BINlinear.result.summarized$UP,df2=T2D.scRNA.RePACT$RepACT.2nd.ob$BINlinear.result.summarized$DOWN,rankname="rank",top_gene_num=20)
-grid.arrange(p1,p2,ncol=2)
+scRNA.OBJ <- readRDS("data/Old9.Beta.scRNA.rds") # Zhou & Chen et al,2019
+T2D.scRNA.RePACT <- scRNA.RePACT(OBJ=scRNA.OBJ,Sample="Sample", pheno="diseaseStat", is_continuous=F, if_donorWise=T)
 ```
-
-The function will return a list for plots and downstream analysis, also the output files will be written out to the disk.
+Output
 ```
-T2D_Beta.scRNA.RePACTDOWN_gene.csv
-T2D_Beta.scRNA.RePACT.genes.FCs.csv
-T2D_Beta.scRNA.RePACT.genes.Full_list.csv
-T2D_Beta.scRNA.RePACTUP_gene.csv
+T2D.scRNA.RePACT$BetaPCA: cell ~ (PC + metadata + pseudoindex)
+T2D.scRNA.RePACT$RePACT_call: UP and DN genes
+T2D.scRNA.RePACT$beta.RNA.PCA.20bin.ob: intermediate files
+T2D.scRNA.RePACT$RePACT_donorWise_intermediate: fisher exact test applied to UP and DN genes within or across donors/samples
+T2D.scRNA.RePACT$betaT2D.diffGene.20bin.PCA: 20bins on trajectory ~ genes
+T2D.scRNA.RePACT$RePACT_donorWise_call: significant genes changed within or across samples
+```
+Plot RePACT genes
+```
+# 3D scatterplot on three specified PCs
+scatter3D(T2D.scRNA.RePACT$BetaPCA[,"PC_1"], T2D.scRNA.RePACT$BetaPCA[,"PC_2"],T2D.scRNA.RePACT$BetaPCA[,"PC_3"],ticktype = "detailed", pch = 20, theta = 150, phi = 180, colvar = ifelse(T2D.scRNA.RePACT$BetaPCA[,"diseaseStat"]==unique(T2D.scRNA.RePACT$BetaPCA[,"diseaseStat"])[1],1,0), bty = "b2", cex = 0.6, col = alpha.col(col = c("blue", "brown"), 0.6))
+# pseudoindex distribution violin for each donor
+ggplot(T2D.scRNA.RePACT$BetaPCA)+aes(Sample,pseudo.index.balanced,fill=diseaseStat)+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("blue", "brown"))+theme_bw()+theme(legend.position="none")
+# pseudoindex distribution from healthy and T2D cells
+ggplot(T2D.scRNA.RePACT$BetaPCA)+aes(pseudo.index.balanced,fill=diseaseStat)+geom_density(alpha=0.75)+scale_fill_manual(values=c("blue","brown"))+theme_classic()+theme(legend.position="none")
+# heatmap to show gene trend along T2D trajectory
+geneset <- c(T2D.scRNA.RePACT$RePACT_call$UP[1:30],T2D.scRNA.RePACT$RePACT_call$DN[1:30]) # select top 30 genes from UP and DN
+T2D.bindata <- T2D.scRNA.RePACT$betaT2D.diffGene.20bin.PCA$UPDN.toplot[, geneset]
+T2D.bindata <- data.frame(apply(T2D.bindata[, -ncol(T2D.bindata), drop = F],2, normalize_01), bin = 1:nrow(T2D.bindata))
+T2D.bindata.m <- reshape2::melt(T2D.bindata, id.vars = "bin")
+T2D.bindata.m$bin <- factor(T2D.bindata.m$bin,levels=1:nrow(T2D.bindata))
+T2D.bindata.m$variable <- factor(T2D.bindata.m$variable, levels=geneset)
+ggplot(T2D.bindata.m) + aes(bin, variable, fill = value) + geom_tile() + scale_fill_gradient2(low = "white", high = "red", mid = "orange", midpoint = 0.6) + labs(y = "Variable genes")
 ```
 <img src="https://raw.githubusercontent.com/chenweng1991/RePACT/RePACT.organized/image/RePACT.violinheat.png" alt="drawing" width="600"/>
 
-## RePACT on scRNA-seq to identify intra-dnor and inter-donor gene signitures 
+Plot donorWise RePACT genes
 ```
-scRNA.OBJ <- readRDS("../Old9.Beta.scRNA.rds")
-donorWise.T2D.RePACT <- DonorWise.scRNA.RePACT(OBJ=scRNA.OBJ, pheno="diseaseStat")
-# Take output List for key plots
-pdf("T2D.scRNA.RePACT.donorWise.pdf",18,5)
-p1 <- ggplot(donorWise.T2D.RePACT$FishersMethod.q.dn.df)+aes(rank,-log10(qvalueInSample),label=GeneLabel,shape=InSampleTag)+geom_point(color="red")+geom_text_repel(color="red")+geom_hline(yintercept=2,linetype=2)+theme_classic()+scale_shape_manual(values=c(20,2))+ggtitle("DN")
-p2 <- ggplot(donorWise.T2D.RePACT$FishersMethod.q.up.df)+aes(rank,-log10(qvalueInSample),label=GeneLabel,shape=InSampleTag)+geom_point(color="darkgreen")+geom_text_repel(color="darkgreen")+geom_hline(yintercept=2,linetype=2)+theme_classic()+scale_shape_manual(values=c(20,2))+ggtitle("UP")
-p3 <- ggplot(donorWise.T2D.RePACT$FishersMethod.q.df)+aes(-log10(qvalue),-log10(qvalueInSample),color=Globaltag,label=GeneLabel)+geom_point(size=0.5)+geom_text_repel(aes(color=Globaltag))+scale_color_manual(values=c("red","darkgreen"))+geom_hline(yintercept=2,linetype=2)+geom_vline(xintercept=-log10(0.005),linetype=2)+theme_classic()+xlab("-log10(Global qvalue)")
-grid.arrange(grobs=list(p1,p2,p3),ncol=3)
-gene.grobs <- list()
-for(gene in c(donorWise.T2D.RePACT$FishersMethod.q.dn.df$gene[1:3], donorWise.T2D.RePACT$FishersMethod.q.up.df$gene[1:3])){
-    gene.grobs[[gene]] <- InSample.compare.nb(OBJ=scRNA.OBJ, pseudo=donorWise.T2D.RePACT$PCAInfo[,"pseudo.index.balanced",drop=F], gene=gene, GetDatatoplot=T)[[3]] %>% ggplot(.)+geom_violin(aes(Q,pseudo.index.balanced,fill=Ave.expr),alpha=0.9) + facet_grid(cols = vars(Sample),space="free")+scale_fill_gradient(low="white",high="red")+theme_classic()+ggtitle(gene)
-}
-grid.arrange(grobs=gene.grobs[1:3],ncol=3)
-grid.arrange(grobs=gene.grobs[4:6],ncol=3)
-dev.off()
-```
-![](https://github.com/chenweng1991/RePACT/blob/master/image/scRNA.RePACT.donorWise.PNG)
-## RePACT on snATAC-seq
-For example, we ran RePACT on beta cell snATAC-seq Seurat obj(donwload here).
-```
-snATAC.OBJ <- readRDS("../Beta.snATAC.rds")
-T2D.snATAC.RePACT <- repact_logistic.snATAC(OBJ=scRNA.OBJ, LSIrange=1:20, pheno="diseaseStat", outputname)
-pdf("T2D.snATAC.RePACT.pdf")
-scatter3D(T2D.snATAC.RePACT$LSI.withinfo[,LSI_Top[1]], T2D.snATAC.RePACT$LSI.withinfo[,LSI_Top[2]], T2D.snATAC.RePACT$LSI.withinfo[,LSI_Top[3]],ticktype = "detailed", pch = 20, theta = 90, phi = 30, colvar = ifelse(LSI.withinfo[,pheno]==pheno.2,1,0), bty = "b2", cex = 0.3, col = alpha.col(col = c("steelblue", "red"), 0.6))
-ggplot(T2D.snATAC.RePACT$LSI.withinfo)+aes(pseudo.index.balanced,fill=get(pheno))+geom_density()+scale_fill_manual(values=c("steelblue","red"))+theme_classic()+theme(legend.position="none")
-ggplot(T2D.snATAC.RePACT$LSI.withinfo)+aes(Sample,pseudo.index.balanced,fill=get(pheno))+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("steelblue", "red"))+theme_bw()+theme(legend.position="none")
-# p4 <- ggplot(T2D.snATAC.RePACT$Evenbin.donorContribute)+aes(Sample,value,fill=disease)+geom_bar(stat="identity",color="black")+facet_grid(~evenfragbin)+theme(axis.text=element_blank(),axis.ticks=element_blank())+scale_fill_manual(values=c("steelblue","red"))+theme_bw()
-apply(T2D.snATAC.RePACT$tmpT2D.diffPeaks.20bin.LSI$UPDN.toplot[,c(rownames(T2D.snATAC.RePACT$tmpT2D.diffPeaks.20bin.LSI$UP), rownames(tmpT2D.diffPeaks.20bin.LSI$DN))],2,function(x){scale(x)}) %>% melt() %>% ggplot()+aes(Var1,Var2,fill=value)+geom_tile()+scale_fill_gradient2(low="steelblue",mid="white",high="red")+theme_classic()+theme(axis.text=element_blank())+ggtitle("LSI-20bins")+xlab("20 trajectory bins") + ylab("ATAC peaks")
-dev.off()
+# ranked scatterplot to show intra-donor DN genes
+ggplot(T2D.scRNA.RePACT$RePACT_donorWise_intermediate$FishersMethod.q.dn.df)+aes(rank,-log10(qvalueInSample),label=GeneLabel,shape=InSampleTag)+geom_point(color="red")+geom_text_repel(color="red")+geom_hline(yintercept=2,linetype=2)+theme_classic()+scale_shape_manual(values=c(20,2))+ggtitle("DN")
+# ranked scatterplot to show intra-donor UP genes
+ggplot(T2D.scRNA.RePACT$RePACT_donorWise_intermediate$FishersMethod.q.up.df)+aes(rank,-log10(qvalueInSample),label=GeneLabel,shape=InSampleTag)+geom_point(color="darkgreen")+geom_text_repel(color="darkgreen")+geom_hline(yintercept=2,linetype=2)+theme_classic()+scale_shape_manual(values=c(20,2))+ggtitle("UP")
+# ranked scatterplot to show intra-donor genes, global_qvalue ~ intradonor_qvalue
+ggplot(T2D.scRNA.RePACT$RePACT_donorWise_intermediate$FishersMethod.q.df)+aes(-log10(qvalue),-log10(qvalueInSample),color=Globaltag,label=GeneLabel)+geom_point(size=0.5)+geom_text_repel(aes(color=Globaltag))+scale_color_manual(values=c("red","darkgreen"))+geom_hline(yintercept=2,linetype=2)+geom_vline(xintercept=-log10(0.005),linetype=2)+theme_classic()+xlab("-log10(Global qvalue)")
 ```
 
-![](https://github.com/chenweng1991/RePACT/blob/master/image/T2D.snATAC.RePACT.PNG)
+![](https://github.com/chenweng1991/RePACT/blob/master/image/scRNA.RePACT.donorWise.PNG)
+
+## RePACT on snATAC-seq
+
+
 
 ## RePACT on snATAC-seq to identify intra-dnor and inter-donor ATAC-peaks
 ```
-snATAC.OBJ <- readRDS("../Beta.snATAC.rds")
-donorWise.T2D.snATAC.RePACT <- DonorWise.snATAC.RePACT(OBJ=snATAC.OBJ, pheno="diseaseStat")
-p1 <- ggplot(donorWise.T2D.snATAC.RePACT$FishersMethod.q.dn.df)+aes(rank,-log10(qvalueInSample),label=tag2,color=tag1)+geom_point()+geom_text_repel()+geom_hline(yintercept=2)+theme_classic()+ggtitle("DN peaks")
-p2 <- ggplot(donorWise.T2D.snATAC.RePACT$FishersMethod.q.up.df)+aes(rank,-log10(qvalueInSample),label=tag2,color=tag1)+geom_point()+geom_text_repel()+geom_hline(yintercept=2)+theme_classic()+ggtitle("UP peaks")
-p1 + p2
-
+OBJ <- readRDS("data/Beta.snATAC.rds") 
+T2D.snATAC.RePACT <- snATAC.RePACT(OBJ=OBJ, Sample="Sample", pheno="diseaseStat", is_continuous=F, if_donorWise=T, RePACT_qvalCut=0.01, donorWise_qvalCut=0.01)
+```
+Output
+```
+T2D.snATAC.RePACT$LSIInfo: cell ~ (LSI + metadata + pseudoindex)
+T2D.snATAC.RePACT$LSIInfo.20bin.ob: intermediate files for binning the cells 
+T2D.snATAC.RePACT$LSIInfo.20bin.ob.LSI: RePACT peaks 
+T2D.snATAC.RePACT$RePACT_donorWise_intermediate: fisher exact test applied to UP and DN peaks within or across donors/samples
+T2D.snATAC.RePACT$RePACT_donorWise_call: donorwise RePACT peaks
+```
+Plot RePACT peaks
+```
+## Plot 3D scatterplot LSI_1 LSI_2 LSI_3
+scatter3D(T2D.snATAC.RePACT$LSIInfo[,"LSI_1"], T2D.snATAC.RePACT$LSIInfo[,"LSI_2"], T2D.snATAC.RePACT$LSIInfo[,"LSI_3"],ticktype = "detailed", pch = 20, theta = 90, phi = 30, colvar = ifelse(T2D.snATAC.RePACT$LSIInfo[,'diseaseStat']=='H',1,0), bty = "b2", cex = 0.3, col = alpha.col(col = c("steelblue", "red"), 0.6))
+## Plot violin pseudoindex
+ggplot(T2D.snATAC.RePACT$LSIInfo)+aes(Sample,pseudo.index.balanced,fill=diseaseStat)+geom_violin()+geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+coord_flip()+theme_classic()+scale_fill_manual(values=c("steelblue", "red"))+theme_bw()+theme(legend.position="none")
+## Plot pseudoindex density between HT and T2D
+ggplot(T2D.snATAC.RePACT$LSIInfo)+aes(pseudo.index.balanced,fill=diseaseStat)+geom_density(alpha=0.75)+scale_fill_manual(values=c("steelblue","red"))+theme_classic()+theme(legend.position="none")
+```
+![](https://github.com/chenweng1991/RePACT/blob/master/image/T2D.snATAC.RePACT.PNG)
+Plot donorwise RePACT peaks
+```
+# Plot intra-donor dn peaks
+ggplot(T2D.snATAC.RePACT$RePACT_donorWise_intermediate$FishersMethod.q.dn.df)+aes(rank,-log10(qvalueInSample),label=tag2,color=tag1)+geom_point()+geom_text_repel()+geom_hline(yintercept=2)+theme_classic()+ggtitle("DN peaks")
+# Plot intra-donor up peaks
+ggplot(T2D.snATAC.RePACT$RePACT_donorWise_intermediate$FishersMethod.q.up.df)+aes(rank,-log10(qvalueInSample),label=tag2,color=tag1)+geom_point()+geom_text_repel()+geom_hline(yintercept=2)+theme_classic()+ggtitle("UP peaks")
 ```
