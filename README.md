@@ -23,7 +23,7 @@ An example:
 # scRNA
 OBJ <- NormalizeData(OBJ)
 OBJ <- FindVariableFeatures(OBJ, selection.method = "vst", nfeatures = 2000)
-OBJ <- ScaleData(OBJ, features = rownames(pbmc))
+OBJ <- ScaleData(OBJ, features = rownames(OBJ))
 OBJ <- RunPCA(OBJ, features = VariableFeatures(object = OBJ))
 DefaultAssay(OBJ) <- "RNA"
 
