@@ -53,7 +53,7 @@ The OBJ@meta.data should contain a "Sample" column and a column to compare using
 ```
 ## scRNA RePACT
 ```
-scRNA.OBJ <- readRDS("../data/Old9.Beta.scRNA.rds")
+scRNA.OBJ <- readRDS("Old9.Beta.scRNA.rds") # load your data
 T2D.scRNA.RePACT <- scRNA.RePACT(scRNA.OBJ,
                                  Sample="Sample",
                                  pheno="diseaseStat",
@@ -102,7 +102,7 @@ lengths(T2D.scRNA.RePACT$RePACT_donorWise_call)
 ```
 ## snATAC RePACT
 ```
-snATAC.OBJ <- readRDS("Beta.snATAC.rds")
+snATAC.OBJ <- readRDS("Beta.snATAC.rds") # load your data
 T2D.snATAC.RePACT <- snATAC.RePACT(OBJ=snATAC.OBJ,
                                    Sample="Sample",
                                    pheno="diseaseStat",
