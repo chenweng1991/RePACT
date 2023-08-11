@@ -20,6 +20,8 @@ MakeEvenBinBydepth_SpeedUP <- function(OBJ,data.info=BetaPeak.data.info,binnumbe
         return(split(values, re))
     }
     cellvsPeak.m <- OBJ@assays$RNA@counts[,row.names(data.info[order(data.info$rank),])]
+    print(nrow(cellvsPeak.m))
+    print(ncol(cellvsPeak.m))
     cell_frags <- colSums(cellvsPeak.m)
     cell_frags.binLis <- splitter(cell_frags, binnumber)
     names(cell_frags.binLis) <- 1:binnumber
