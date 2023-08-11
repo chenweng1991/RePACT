@@ -11,14 +11,15 @@
 #' beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber=20)
 
 MakeEvenBinBydepth_SpeedUP <- function(OBJ,data.info=BetaPeak.data.info,binnumber=20){
-    require(rlist)
-    require(plyr)
+    # require(rlist)
+    # require(plyr)
     splitter <- function(values, N){
         inds = c(0, sapply(1:N, function(i) which.min(abs(cumsum(as.numeric(values)) - sum(as.numeric(values))/N*i))))
         dif = diff(inds)
         re = rep(1:length(dif), times = dif)
         return(split(values, re))
     }
+			   print("MakeEvenBinBydepth_SpeedUP")
     cellvsPeak.m <- OBJ@assays$RNA@counts[,row.names(data.info[order(data.info$rank),])]
     print(nrow(cellvsPeak.m))
     print(ncol(cellvsPeak.m))
