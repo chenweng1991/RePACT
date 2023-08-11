@@ -25,10 +25,11 @@ MakeEvenBinBydepth_SpeedUP <- function(OBJ,data.info=BetaPeak.data.info,binnumbe
     cell_frags <- colSums(cellvsPeak.m)
     cell_frags.binLis <- splitter(cell_frags, binnumber)
     names(cell_frags.binLis) <- 1:binnumber
+    cell_frags.binLis.copy <- cell_frags.binLis		   
     cellvsPeak.m.aggr.Lis <- list()
     for(tmp in 1:length(cell_frags.binLis)){
-          cell_frags.binLis[[tmp]] <- data.frame(cell=names(cell_frags.binLis[[tmp]]), frags=cell_frags.binLis[[tmp]], evenfragbin=tmp)
-          cellvsPeak.m.aggr.Lis[[paste("traj",tmp,sep='')]] <- rowSums(OBJ@assays$RNA@counts[,cell_frags.binLis[[tmp]][,"cell"]])
+          cell_frags.binLis.copy[[tmp]] <- data.frame(cell=names(cell_frags.binLis[[tmp]]), frags=cell_frags.binLis[[tmp]], evenfragbin=tmp)
+          cellvsPeak.m.aggr.Lis[[paste("traj",tmp,sep='')]] <- rowSums(OBJ@assays$RNA@counts[,cell_frags.binLis.copy[[tmp]][,"cell"]])
     }
     data.info.withbin <- merge(data.info, list.rbind(cell_frags.binLis), by.x=0, by.y='cell',all.x=TRUE)
     rownames(data.info.withbin) <- data.info.withbin$Row.names
