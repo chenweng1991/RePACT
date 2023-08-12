@@ -72,7 +72,7 @@ scatter3D(T2D.scRNA.RePACT$BetaPCA[,"PC_1"], T2D.scRNA.RePACT$BetaPCA[,"PC_2"],T
 ```
 Pseudoindex distribution violin for each donor
 ```
-ggplot(T2D.scRNA.RePACT$BetaPCA)+aes(Sample,pseudo.index.balanced,fill=diseaseStat)+
+ggplot(T2D.scRNA.RePACT$BetaPCA %>% .[complete.cases(.),])+aes(Sample,pseudo.index.balanced,fill=diseaseStat)+
        geom_violin()+
        geom_boxplot(width=0.2,outlier.shape = NA,notch=F,coef = 0,fill="grey25",color="grey75")+
        coord_flip()+theme_classic()+scale_fill_manual(values=c("blue", "brown"))+
