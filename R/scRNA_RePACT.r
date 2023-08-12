@@ -1,7 +1,7 @@
 #' MakeEvenBinBydepth
 #'
 #' This function is to make even bins for cells, to keep the cell number and total cell fragments even.
-#' @param OBJ, Seurat OBJ
+#' @param OBJ.tmp, Seurat OBJ
 #' @param data.info
 #' @param binnumber
 #' @return The function return a list: # data.info.withbin:(data.info + evenfragbin), cellvsPeak.m.aggr: gene ~ traj1-traj20 , index: mean pseudoindex of every traj_bin, depth: total frags of cells within each traj_bin
@@ -10,7 +10,7 @@
 #' @examples
 #' beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber=20)
 
-MakeEvenBinBydepth_SpeedUP <- function(OBJ,data.info=BetaPeak.data.info,binnumber=20){
+MakeEvenBinBydepth_SpeedUP <- function(OBJ.tmp, data.info=BetaPeak.data.info,binnumber=20){
     # require(rlist)
     # require(plyr)
     splitter <- function(values, N){
@@ -20,7 +20,7 @@ MakeEvenBinBydepth_SpeedUP <- function(OBJ,data.info=BetaPeak.data.info,binnumbe
         return(split(values, re))
     }
 			   print("MakeEvenBinBydepth_SpeedUP")
-    cellvsPeak.m <- OBJ@assays$RNA@counts[,row.names(data.info[order(data.info$rank),])]
+    cellvsPeak.m <- OBJ.tmp@assays$RNA@counts[,row.names(data.info[order(data.info$rank),])]
     print(nrow(cellvsPeak.m))
     print(ncol(cellvsPeak.m))
     cell_frags <- colSums(cellvsPeak.m)
