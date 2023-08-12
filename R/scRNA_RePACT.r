@@ -4,7 +4,6 @@
 #' @param values, fragment counts
 #' @param N, number of bins
 #' @return a list of cells, length is equal to N
-#' @import 
 #' @export
 #' @examples
 
