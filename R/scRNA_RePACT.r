@@ -1,36 +1,42 @@
+#' splitter
+#'
+#' This function is to split cells to bins with similar depth.
+#' @param values, fragment counts
+#' @param N, number of bins
+#' @return a list of cells, length is equal to N
+#' @import 
+#' @export
+#' @examples
+
+splitter <- function(values, N){
+    inds = c(0, sapply(1:N, function(i) which.min(abs(cumsum(as.numeric(values)) - sum(as.numeric(values))/N*i))))
+    dif = diff(inds)
+    re = rep(1:length(dif), times = dif)
+    return(split(values, re))
+}
+
 #' MakeEvenBinBydepth
 #'
 #' This function is to make even bins for cells, to keep the cell number and total cell fragments even.
 #' @param OBJ.tmp, Seurat OBJ
 #' @param data.info
-#' @param binnumber
+#' @param binnumber.tmp
 #' @return The function return a list: # data.info.withbin:(data.info + evenfragbin), cellvsPeak.m.aggr: gene ~ traj1-traj20 , index: mean pseudoindex of every traj_bin, depth: total frags of cells within each traj_bin
 #' @import Seurat pscl rlist plyr
 #' @export
 #' @examples
 #' beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber=20)
 
-MakeEvenBinBydepth_SpeedUP <- function(OBJ.tmp, data.info=BetaPeak.data.info,binnumber=20){
-    # require(rlist)
-    # require(plyr)
-    splitter <- function(values, N){
-        inds = c(0, sapply(1:N, function(i) which.min(abs(cumsum(as.numeric(values)) - sum(as.numeric(values))/N*i))))
-        dif = diff(inds)
-        re = rep(1:length(dif), times = dif)
-        return(split(values, re))
-    }
-			   print("MakeEvenBinBydepth_SpeedUP")
-    cellvsPeak.m <- OBJ.tmp@assays$RNA@counts[,row.names(data.info[order(data.info$rank),])]
-    print(nrow(cellvsPeak.m))
-    print(ncol(cellvsPeak.m))
+MakeEvenBinBydepth_SpeedUP <- function(OBJ.tmp, data.info=BetaPeak.data.info, binnumber.tmp=20){
+    print("running MakeEvenBinBydepth_SpeedUP")
+    cellvsPeak.m <- OBJ.tmp@assays$RNA@counts[, row.names(data.info[order(data.info$rank),])]
     cell_frags <- colSums(cellvsPeak.m)
-    cell_frags.binLis <- splitter(cell_frags, binnumber)
-    names(cell_frags.binLis) <- 1:binnumber
-    cell_frags.binLis.copy <- cell_frags.binLis		   
+    cell_frags.binLis <- splitter(cell_frags, binnumber.tmp)
+    names(cell_frags.binLis) <- 1:binnumber.tmp
     cellvsPeak.m.aggr.Lis <- list()
     for(tmp in 1:length(cell_frags.binLis)){
-          cell_frags.binLis.copy[[tmp]] <- data.frame(cell=names(cell_frags.binLis[[tmp]]), frags=cell_frags.binLis[[tmp]], evenfragbin=tmp)
-          cellvsPeak.m.aggr.Lis[[paste("traj",tmp,sep='')]] <- rowSums(OBJ@assays$RNA@counts[,cell_frags.binLis.copy[[tmp]][,"cell"]])
+          cell_frags.binLis[[tmp]] <- data.frame(cell=names(cell_frags.binLis[[tmp]]), frags=cell_frags.binLis[[tmp]], evenfragbin=tmp)
+          cellvsPeak.m.aggr.Lis[[paste("traj",tmp,sep='')]] <- rowSums(OBJ@assays$RNA@counts[,cell_frags.binLis[[tmp]][,"cell"]])
     }
     data.info.withbin <- merge(data.info, list.rbind(cell_frags.binLis), by.x=0, by.y='cell',all.x=TRUE)
     rownames(data.info.withbin) <- data.info.withbin$Row.names
@@ -248,6 +254,7 @@ CallT2Dpeak_pvalueOneTail <- function(cellvsPeak.m.aggr, depths, index, doscale=
     return(pseudoregress.all)
 }
 
+
 #' scRNA.RePACT optimize speed
 #'
 #' This function is to run regression based on the number of PCs, and characteristics of samples.
@@ -274,20 +281,6 @@ scRNA.RePACT <- function(OBJ, Sample, pheno, pheno_levels, is_continuous=F, if_d
     require(pscl)
     require(qvalue)
     require(rlist)
-    GetRePACTLinearmodel.cca<-function(ccaWithinfo=cca.L2.info, prefix="CC",pheno="Disease",CCrange=1:10){
-        CCnames <- paste("ccaWithinfo$",prefix,"_",CCrange, sep = "")
-        ccaWithinfo[,pheno] <- as.factor(ccaWithinfo[,pheno])
-        ccaWithinfo[,pheno] <- as.numeric(levels(ccaWithinfo[,pheno]))[ccaWithinfo[,pheno]]
-        form <- formula(paste("ccaWithinfo[,pheno]", paste(CCnames, collapse = "+"), sep = "~"))
-        model <- lm(form)
-        return(model)
-    }
-    Tomerge_v2 <- function (A, B, leavex = T, leavey = F){
-        mergeAB <- merge(A, B, by = "row.names", all.x = leavex, all.y = leavey)
-        row.names(mergeAB) <- mergeAB[, 1]
-        mergeAB <- mergeAB[, -1]
-        return(mergeAB)
-    }
     # BetaPCA contains 50PCs and OBJ meta data
     BetaPCA <- OBJ@reductions$pca@cell.embeddings %>% Tomerge_v2(.,OBJ@meta.data)
     BetaPCA <- BetaPCA[,1:50] %>% apply(.,2,function(x){x/sqrt(sum(x^2))}) %>% cbind(.,BetaPCA[,51:ncol(BetaPCA)])
@@ -342,7 +335,7 @@ scRNA.RePACT <- function(OBJ, Sample, pheno, pheno_levels, is_continuous=F, if_d
     BetaPCA$rank <- rank(BetaPCA$pseudo.index.balanced) # rank cells based on their pseudo-index
     # bin the cells based on the pseudo-index rank, coonsidering the similar depth and cell number with each bin
     print("binning the cells along the trajectory")
-    beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber=binnumber)
+    beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ.tmp=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber.tmp=binnumber)
     # measure the gene trend across two conditions or a continuous progression by regressing pseudo-index~expression. Get slope and pvalue/qvalue as stats
     print("Getting statistics")
 #    betaT2D.diffGene.20bin.PCA <- CallT2Dpeak_qvalue(beta.RNA.PCA.20bin.ob$cellvsPeak.m.aggr, beta.RNA.PCA.20bin.ob$depths, beta.RNA.PCA.20bin.ob$index, qcut=0.2,slopecut1=0.3,slopecut2=-0.3,doscale=T)
@@ -410,7 +403,6 @@ scRNA.RePACT <- function(OBJ, Sample, pheno, pheno_levels, is_continuous=F, if_d
 #'
 #' This function is to run logistic regression based on the number of LSIs, and characteristics of samples.
 #' @param ccaWithinfo, phenotable
-#' @param PCrange, Specified PCs for regression
 #' @param prefix
 #' @param pheno, the column name of the "characteristics to compare" in the phenodic.use dataframe
 #' @param CCrange
@@ -430,6 +422,49 @@ GetRePACTmodel.cca<-function(ccaWithinfo=cca.L2.info, prefix="CC",pheno="Disease
 # lrt.pvalue <- 1 - pchisq(summary(model)$null.deviance - summary(model)$deviance, summary(model)$df.null - summary(model)$df.residual)
   return(model)
 }
+
+#' GetRePACTLinearmodel.cca
+#'
+#' This function is to run linear regression based on the number of LSIs, and characteristics of samples.
+#' @param ccaWithinfo, phenotable
+#' @param prefix
+#' @param pheno, the column name of the "characteristics to compare" in the phenodic.use dataframe
+#' @param CCrange
+#' @return The function return linear model
+#' @import Seurat pscl
+#' @export
+#' @examples
+#'
+
+GetRePACTLinearmodel.cca<-function(ccaWithinfo=cca.L2.info, prefix="CC",pheno="Disease",CCrange=1:10){
+    CCnames <- paste("ccaWithinfo$",prefix,"_",CCrange, sep = "")
+    ccaWithinfo[,pheno] <- as.factor(ccaWithinfo[,pheno])
+    ccaWithinfo[,pheno] <- as.numeric(levels(ccaWithinfo[,pheno]))[ccaWithinfo[,pheno]]
+    form <- formula(paste("ccaWithinfo[,pheno]", paste(CCnames, collapse = "+"), sep = "~"))
+    model <- lm(form)
+    return(model)
+}
+
+#' Tomerge_v2
+#'
+#' This function is to merge two dataframe and assign rownames.
+#' @param A, dataframe
+#' @param B, dataframe
+#' @param leavex
+#' @param leavey
+#' @return The function return merged dataframe
+#' @import Seurat pscl
+#' @export
+#' @examples
+#'
+
+Tomerge_v2 <- function (A, B, leavex = T, leavey = F){
+    mergeAB <- merge(A, B, by = "row.names", all.x = leavex, all.y = leavey)
+    row.names(mergeAB) <- mergeAB[, 1]
+    mergeAB <- mergeAB[, -1]
+    return(mergeAB)
+}
+
 
 #' standard_fun
 #'
