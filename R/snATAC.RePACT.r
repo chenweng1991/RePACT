@@ -1,23 +1,25 @@
 
+#' MakeEvenBinBydepth_SpeedUP_ATAC
+#'
+#' This function is to make even bins for cells, to keep the cell number and total cell fragments even.
+#' @param OBJ.tmp, Seurat OBJ
+#' @param data.info
+#' @param binnumber
+#' @return The function return a list: # data.info.withbin:(data.info + evenfragbin), cellvsPeak.m.aggr: gene ~ traj1-traj20 , index: mean pseudoindex of every traj_bin, depth: total frags of cells within each traj_bin
+#' @import Seurat pscl rlist plyr
+#' @export
+#' @examples
+#' beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber=20)
 
-
-MakeEvenBinBydepth_SpeedUP_ATAC <- function(OBJ,data.info=BetaPeak.data.info,binnumber=20){
-    require(rlist)
-    require(plyr)
-    splitter <- function(values, N){
-        inds = c(0, sapply(1:N, function(i) which.min(abs(cumsum(as.numeric(values)) - sum(as.numeric(values))/N*i))))
-        dif = diff(inds)
-        re = rep(1:length(dif), times = dif)
-        return(split(values, re))
-    }
-    cellvsPeak.m <- OBJ@assays$peak@counts[,row.names(data.info[order(data.info$rank),])]
+MakeEvenBinBydepth_SpeedUP_ATAC <- function(OBJ.tmp, data.info=BetaPeak.data.info, binnumber=20){
+    cellvsPeak.m <- OBJ.tmp@assays$peak@counts[,row.names(data.info[order(data.info$rank),])]
     cell_frags <- colSums(cellvsPeak.m)
     cell_frags.binLis <- splitter(cell_frags, binnumber)
     names(cell_frags.binLis) <- 1:binnumber
     cellvsPeak.m.aggr.Lis <- list()
     for(tmp in 1:length(cell_frags.binLis)){
           cell_frags.binLis[[tmp]] <- data.frame(cell=names(cell_frags.binLis[[tmp]]), frags=cell_frags.binLis[[tmp]], evenfragbin=tmp)
-          cellvsPeak.m.aggr.Lis[[paste("traj",tmp,sep='')]] <- rowSums(OBJ@assays$peak@counts[,cell_frags.binLis[[tmp]][,"cell"]])
+          cellvsPeak.m.aggr.Lis[[paste("traj",tmp,sep='')]] <- rowSums(OBJ.tmp@assays$peak@counts[,cell_frags.binLis[[tmp]][,"cell"]])
     }
     data.info.withbin <- merge(data.info, list.rbind(cell_frags.binLis), by.x=0, by.y='cell',all.x=TRUE)
     rownames(data.info.withbin) <- data.info.withbin$Row.names
@@ -29,7 +31,7 @@ MakeEvenBinBydepth_SpeedUP_ATAC <- function(OBJ,data.info=BetaPeak.data.info,bin
     return(list(data.info.withbin=data.info.withbin,cellvsPeak.m.aggr=cellvsPeak.m.aggr,index=index,depths=depths))
 }
 
-#' CallT2Dpeak_qvalue_SpeedUP
+#' CallT2Dpeak_qvalue_SpeedUP_ATAC
 #'
 #' This function is to call dynamic peaks along the phenotype trajectory
 #' @param cellvsPeak.m.aggr, a vector of peaks (":" "-")
@@ -44,7 +46,7 @@ MakeEvenBinBydepth_SpeedUP_ATAC <- function(OBJ,data.info=BetaPeak.data.info,bin
 #' @export
 #' @examples
 
-CallT2Dpeak_qvalue_SpeedUP <- function(cellvsPeak.m.aggr=ATAConCCA.betaT2D.tjct.3nd.10bin.ob$cellvsPeak.m.aggr, depths=ATAConCCA.betaT2D.tjct.3nd.10bin.ob$depths, index=ATAConCCA.betaT2D.tjct.3nd.10bin.ob$index,qcut=0.1,slopecut1=0.5,slopecut2=-0.5,doscale=T){
+CallT2Dpeak_qvalue_SpeedUP_ATAC <- function(cellvsPeak.m.aggr=ATAConCCA.betaT2D.tjct.3nd.10bin.ob$cellvsPeak.m.aggr, depths=ATAConCCA.betaT2D.tjct.3nd.10bin.ob$depths, index=ATAConCCA.betaT2D.tjct.3nd.10bin.ob$index,qcut=0.1,slopecut1=0.5,slopecut2=-0.5,doscale=T){
     require(parallel)
     require(qvalue)
     cellvsPeak.m.aggr.norm <- t(t(cellvsPeak.m.aggr)/depths) # normalize by total cell depth per traj_bin, result is gene~traj_bin
@@ -223,8 +225,8 @@ snATAC.RePACT <- function(OBJ, Sample, pheno, pheno_levels, is_continuous=F, if_
     LSIInfo$pseudo.index = md.all$linear.predictors
     LSIInfo$pseudo.index.balanced<-do.call(cbind,pseudo.indexes) %>% rowMeans()
     LSIInfo$rank<-rank(LSIInfo$pseudo.index.balanced)
-    LSIInfo.20bin.ob <- MakeEvenBinBydepth_SpeedUP_ATAC(OBJ=OBJ, data.info=LSIInfo[,51:ncol(LSIInfo)], binnumber=binnumber)
-    LSIInfo.20bin.ob.LSI <- CallT2Dpeak_qvalue_SpeedUP(LSIInfo.20bin.ob$cellvsPeak.m.aggr, LSIInfo.20bin.ob$depths, LSIInfo.20bin.ob$index, qcut=RePACT_qvalCut, slopecut1=0.5, slopecut2=-0.5, doscale=T)
+    LSIInfo.20bin.ob <- MakeEvenBinBydepth_SpeedUP_ATAC(OBJ.tmp=OBJ, data.info=LSIInfo[,51:ncol(LSIInfo)], binnumber=binnumber)
+    LSIInfo.20bin.ob.LSI <- CallT2Dpeak_qvalue_SpeedUP_ATAC(LSIInfo.20bin.ob$cellvsPeak.m.aggr, LSIInfo.20bin.ob$depths, LSIInfo.20bin.ob$index, qcut=RePACT_qvalCut, slopecut1=0.5, slopecut2=-0.5, doscale=T)
     bin20.g.up <- row.names(subset(LSIInfo.20bin.ob.LSI$UP,qvalue<RePACT_qvalCut & MaxRPKM>quantile(LSIInfo.20bin.ob.LSI$pseudoregress.all$MaxRPKM,0.25)))
     bin20.g.dn <- row.names(subset(LSIInfo.20bin.ob.LSI$DN,qvalue<RePACT_qvalCut & MaxRPKM>quantile(LSIInfo.20bin.ob.LSI$pseudoregress.all$MaxRPKM,0.25)))
     RePACT_call <- list(UP=bin20.g.up, DN=bin20.g.dn)
