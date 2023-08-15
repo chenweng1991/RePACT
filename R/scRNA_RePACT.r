@@ -17,7 +17,7 @@ splitter <- function(values, N){
 #' MakeEvenBinBydepth
 #'
 #' This function is to make even bins for cells, to keep the cell number and total cell fragments even.
-#' @param OBJ.tmp, Seurat OBJ
+#' @param OBJ, Seurat OBJ
 #' @param data.info
 #' @param binnumber.tmp
 #' @return The function return a list: # data.info.withbin:(data.info + evenfragbin), cellvsPeak.m.aggr: gene ~ traj1-traj20 , index: mean pseudoindex of every traj_bin, depth: total frags of cells within each traj_bin
@@ -26,9 +26,9 @@ splitter <- function(values, N){
 #' @examples
 #' beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber=20)
 
-MakeEvenBinBydepth_SpeedUP <- function(OBJ.tmp, data.info=BetaPeak.data.info, binnumber.tmp=20){
+MakeEvenBinBydepth_SpeedUP <- function(OBJ, data.info=BetaPeak.data.info, binnumber.tmp=20){
     print("running MakeEvenBinBydepth_SpeedUP")
-    cellvsPeak.m <- OBJ.tmp@assays$RNA@counts[, row.names(data.info[order(data.info$rank),])]
+    cellvsPeak.m <- OBJ@assays$RNA@counts[, row.names(data.info[order(data.info$rank),])]
     cell_frags <- colSums(cellvsPeak.m)
     cell_frags.binLis <- splitter(cell_frags, binnumber.tmp)
     names(cell_frags.binLis) <- 1:binnumber.tmp
@@ -334,7 +334,7 @@ scRNA.RePACT <- function(OBJ, Sample, pheno, pheno_levels, is_continuous=F, if_d
     BetaPCA$rank <- rank(BetaPCA$pseudo.index.balanced) # rank cells based on their pseudo-index
     # bin the cells based on the pseudo-index rank, coonsidering the similar depth and cell number with each bin
     print("binning the cells along the trajectory")
-    beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ.tmp=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber.tmp=binnumber)
+    beta.RNA.PCA.20bin.ob <- MakeEvenBinBydepth_SpeedUP(OBJ=OBJ, data.info=BetaPCA[,51:ncol(BetaPCA)], binnumber.tmp=binnumber)
     # measure the gene trend across two conditions or a continuous progression by regressing pseudo-index~expression. Get slope and pvalue/qvalue as stats
     print("Getting statistics")
 #    betaT2D.diffGene.20bin.PCA <- CallT2Dpeak_qvalue(beta.RNA.PCA.20bin.ob$cellvsPeak.m.aggr, beta.RNA.PCA.20bin.ob$depths, beta.RNA.PCA.20bin.ob$index, qcut=0.2,slopecut1=0.3,slopecut2=-0.3,doscale=T)
