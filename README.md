@@ -65,6 +65,7 @@ T2D.scRNA.RePACT <- scRNA.RePACT(scRNA.OBJ,
 scRNA RePACT PLOTS:
 3D scatterplot
 ```
+library(plot3D)
 scatter3D(T2D.scRNA.RePACT$BetaPCA[,"PC_1"], T2D.scRNA.RePACT$BetaPCA[,"PC_2"],T2D.scRNA.RePACT$BetaPCA[,"PC_3"],
           ticktype = "detailed", pch = 20, theta = 150, phi = 180, 
           colvar = ifelse(T2D.scRNA.RePACT$BetaPCA[,"diseaseStat"]==unique(T2D.scRNA.RePACT$BetaPCA[,"diseaseStat"])[1],1,0),
